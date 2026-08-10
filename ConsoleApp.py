@@ -1,4 +1,15 @@
 from abc import ABC, abstractmethod
+from datetime import datetime
+from typing import List, Dict, Optional
+
+class Branch:
+    def __init__(self, branch_code: str, branch_name: str, Location: str, Manager_ID: str, staff_list: List[str]):
+        self.branch_code = branch_code
+        self.branch_name = branch_name
+        self.Location = Location
+        self.Manager_ID = Manager_ID
+        self.staff_list = staff_list
+
 class BankAccount(ABC):
     def __init__(self, owner: str):
         self.owner = owner
@@ -24,9 +35,7 @@ class BankAccount(ABC):
     @property    
     @abstractmethod
     def get_balance(self) -> float:
-        pass
-
-    
+        pass    
 
 class SavingsAccount(BankAccount):
     def __init__(self, owner: str, interest_rate: float):
@@ -42,6 +51,10 @@ class CheckingAccount(BankAccount):
     @property
     def get_balance(self) -> float:
         return self._balance
+
+class BankingSystem:
+    def __init__(self):
+        self.branches: Dict[str, Branch] = {}
 
 
 def main():
