@@ -55,14 +55,24 @@ class CheckingAccount(BankAccount):
 class BankingSystem:
     def __init__(self):
         self.branches: Dict[str, Branch] = {}
+        self.accounts: Dict[str, BankAccount] = {}
 
+    def add_branch(self, branch: Branch):
+        self.branches[branch.branch_code] = branch
 
 def main():
+    banking_system = BankingSystem()
+    branch1 = Branch("001", "Downtown Branch", "123 Main St", "MGR001", ["Staff1", "Staff2"])
+    branch2 = Branch("002", "Uptown Branch", "456 Elm St", "MGR002", ["Staff3", "Staff4"])
+    banking_system.add_branch(branch1)
+    banking_system.add_branch(branch2)
+
     savings = SavingsAccount("Alice", 0.20)
     checking = CheckingAccount("Bob")
 
     savings.deposit(1000)
     checking.deposit(500)
+
 
     accounts = [savings, checking]
 
