@@ -10,6 +10,7 @@ class Branch:
         self.Manager_ID = Manager_ID
         self.staff_list = staff_list
 
+        
 class BankAccount(ABC):
     def __init__(self, owner: str):
         self.owner = owner
@@ -56,7 +57,34 @@ class BankingSystem:
     def __init__(self):
         self.branches: Dict[str, Branch] = {}
 
+class Customer:
+    def __init__(self, customer_id: str, name: str, email: str, branch_ID: str):
+        self.customer_id = customer_id
+        self.name = name
+        self.email = email
+        self.account_list = list[BankAccount] = []
+        self.branch_ID = branch_ID
 
+    def get_Accounts(self) -> List[BankAccount]:
+        return self.account_list
+    
+    def add_account(self, account: BankAccount) -> None:
+        self.account_list.append(account)
+
+    def remove_account(self, account: BankAccount) -> None:
+        if account in self.account_list:
+            self.account_list.remove(account)
+        else:
+            raise ValueError("Account not found in the customer's account list.")
+
+    def diplay_customer_info(self) -> None:
+        print(f"Customer ID: {self.customer_id}")
+        print(f"Name: {self.name}")
+        print(f"Email: {self.email}")
+        print("Accounts:")
+        for account in self.account_list:
+            print(f"  - Account Type: {type(account).__name__}, Balance: ${account.get_balance:.2f}")
+    
 def main():
     savings = SavingsAccount("Alice", 0.20)
     checking = CheckingAccount("Bob")
