@@ -55,9 +55,12 @@ def main():
 
     for account in accounts:
         print(f"{account.owner}'s account type: {type(account).__name__}")
-        print(f"Interest Rate: {account.interest_rate * 100:.2f}%")
-        print(f"Accrued Interest: ${account.accrued_interest:.2f}")
-        print(f"{account.owner}'s account balance: ${account.get_balance:.2f}")
+
+        if account.interest_rate > 0:
+            print(f"Interest Rate: {account.interest_rate * 100:.2f}%")
+            print(f"Accrued Interest: ${account.accrued_interest:.2f}")
+
+        print(f"{account.owner}'s account balance before withdrawal: ${account.get_balance:.2f}")
 
         account.withdraw(100)
         print(f"{account.owner}'s account balance after withdrawal: ${account.get_balance:.2f}")
