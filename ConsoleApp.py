@@ -1,6 +1,36 @@
 from abc import ABC, abstractmethod
 from datetime import datetime
+from enum import Enum
 from typing import List, Dict, Optional
+import uuid
+
+
+class TransactionType(Enum):
+    DEPOSIT = "Deposit"
+    WITHDRAWAL = "Withdrawal"
+    TRANSFER = "Transfer"
+
+
+class Transaction:
+    def __init__(self, from_account: Optional[str], to_account: Optional[str],
+                 amount: float, transaction_type: TransactionType):
+        self.transaction_id: str = str(uuid.uuid4())[:8]
+        self.from_account = from_account
+        self.to_account = to_account
+        self.amount = amount
+        self.timestamp: datetime = datetime.now()
+        self.type = transaction_type
+
+    def __str__(self) -> str:
+        ts = self.timestamp.strftime("%Y-%m-%d %H:%M:%S")
+        if self.type == TransactionType.DEPOSIT:
+            return f"[{self.transaction_id}] {ts} | DEPOSIT    | -> {self.to_account} | ${self.amount:.2f}"
+        elif self.type == TransactionType.WITHDRAWAL:
+            return f"[{self.transaction_id}] {ts} | WITHDRAWAL | {self.from_account} -> | ${self.amount:.2f}"
+        else:
+            return (f"[{self.transaction_id}] {ts} | TRANSFER   | "
+                    f"{self.from_account} -> {self.to_account} | ${self.amount:.2f}")
+
 
 
 class Branch:
@@ -18,19 +48,45 @@ class BankAccount(ABC):
         self._balance = balance
         self.owner_id = owner_id
         self.interest_rate = 0.0
+        self.transaction_history: List[Transaction] = []
 
     def deposit(self, amount: float) -> None:
         if amount > 0:
             self._balance += amount
+            self.transaction_history.append(
+                Transaction(from_account=None, to_account=self.account_number,
+                            amount=amount, transaction_type=TransactionType.DEPOSIT)
+            )
         else:
             raise ValueError("Deposit amount must be positive.")
 
     def withdraw(self, amount: float) -> None:
         if amount > 0 and amount <= self._balance:
             self._balance -= amount
+            self.transaction_history.append(
+                Transaction(from_account=self.account_number, to_account=None,
+                            amount=amount, transaction_type=TransactionType.WITHDRAWAL)
+            )
         else:
             raise ValueError(
                 "Withdrawal amount must be positive and less than or equal to the balance.")
+
+    def transfer_to(self, other: "BankAccount", amount: float) -> None:
+        if amount <= 0 or amount > self._balance:
+            raise ValueError("Transfer amount must be positive and less than or equal to the balance.")
+        self._balance -= amount
+        other._balance += amount
+        txn = Transaction(from_account=self.account_number, to_account=other.account_number,
+                           amount=amount, transaction_type=TransactionType.TRANSFER)
+        self.transaction_history.append(txn)
+        other.transaction_history.append(txn)
+
+    def print_transaction_history(self) -> None:
+        print(f"  History for {self.account_number}:")
+        if not self.transaction_history:
+            print("    No transactions yet.")
+        for txn in self.transaction_history:
+            print(f"    {txn}")
 
     @property
     def accrued_interest(self) -> float:
