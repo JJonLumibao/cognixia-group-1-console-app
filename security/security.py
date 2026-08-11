@@ -1,7 +1,7 @@
 import os
 import uuid
 import bcrypt
-import jwt
+from jose import jwt
 
 from datetime import datetime, timedelta, timezone
 from dotenv import load_dotenv
