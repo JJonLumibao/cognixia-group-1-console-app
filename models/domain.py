@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from typing import List, Optional
@@ -108,3 +109,12 @@ class CheckingAccount(BankAccount):
     def get_balance(self) -> float:
         """Return the current checking account balance."""
         return self._balance
+ 
+    
+@dataclass
+class Customer:
+   customer_id: int
+   first_name: str
+   last_name: str
+   email: str
+   active: bool = True
