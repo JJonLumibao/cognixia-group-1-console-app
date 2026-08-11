@@ -1,67 +1,70 @@
-# models/database.py
-import os
-from pymongo import MongoClient
+﻿import os
+from datetime import datetime
 from dotenv import load_dotenv
-
-# Import your domain models
-from models.domain import Branch, Customer, BankAccount, Transaction
+from sqlalchemy import (
+    create_engine,
+    Column,
+    String,
+    Float,
+    Boolean,
+    DateTime,
+    ForeignKey,
+)
+from sqlalchemy.orm import declarative_base, relationship, sessionmaker
 
 load_dotenv()
 
-class MongoManager:
-    def __init__(self):
-        uri = os.getenv("MONGO_URI")
-        if not uri:
-            raise ValueError("MONGO_URI is missing. Please ensure your .env file is set up.")
-            
-        self.client = MongoClient(uri)
-        self.db = self.client["banking_db"]
-        
-        self.branches = self.db["branches"]
-        self.customers = self.db["customers"]
-        self.accounts = self.db["accounts"]
-        self.transactions = self.db["transactions"]
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    raise ValueError("DATABASE_URL is missing. Please ensure your .env file is set up.")
 
-    def save_branch(self, branch: Branch) -> None:
-        branch_data = {
-            "_id": branch.branch_code,
-            "location": branch.location,
-            "manager_id": branch.manager_id,
-            "staff_list": branch.staff_list
-        }
-        self.branches.update_one({"_id": branch.branch_code}, {"$set": branch_data}, upsert=True)
+engine = create_engine(DATABASE_URL, echo=False, future=True)
+SessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False, future=True)
+Base = declarative_base()
 
-    def save_customer(self, customer: Customer) -> None:
-        customer_data = {
-            "_id": customer.id,
-            "name": customer.name,
-            "email": customer.email,
-            "branch_id": customer.branch_id,
-            "accounts": customer.accounts
-        }
-        self.customers.update_one({"_id": customer.id}, {"$set": customer_data}, upsert=True)
+class Customer(Base):
+    __tablename__ = "customers"
 
-    def save_account(self, account: BankAccount) -> None:
-        account_data = {
-            "_id": account.account_number,
-            "owner_id": account.owner_id,
-            "balance": account.get_balance,
-            "type": account.account_type
-        }
-        self.accounts.update_one({"_id": account.account_number}, {"$set": account_data}, upsert=True)
-        
-        self.customers.update_one(
-            {"_id": account.owner_id},
-            {"$addToSet": {"accounts": account.account_number}} 
-        )
+    id = Column(String, primary_key=True, index=True)
+    name = Column(String, nullable=False)
+    email = Column(String, nullable=False, unique=True)
+    branch_id = Column(String, nullable=True)
+    active = Column(Boolean, nullable=False, default=True)
 
-    def record_transaction(self, txn: Transaction) -> None:
-        txn_data = {
-            "_id": txn.transaction_id,
-            "from_account_id": txn.from_account_id,
-            "to_account_id": txn.to_account_id,      
-            "amount": txn.amount,
-            "type": txn.type.value if hasattr(txn.type, "value") else txn.type,
-            "timestamp": txn.timestamp
-        }
-        self.transactions.update_one({"_id": txn.transaction_id}, {"$set": txn_data}, upsert=True)
+    accounts = relationship("Account", back_populates="owner", cascade="all, delete-orphan")
+
+class Account(Base):
+    __tablename__ = "accounts"
+
+    id = Column(String, primary_key=True, index=True)
+    owner_id = Column(String, ForeignKey("customers.id"), nullable=False)
+    account_type = Column(String, nullable=False)
+    balance = Column(Float, nullable=False, default=0.0)
+    branch_id = Column(String, nullable=True)
+    active = Column(Boolean, nullable=False, default=True)
+
+    owner = relationship("Customer", back_populates="accounts")
+
+class Transaction(Base):
+    __tablename__ = "transactions"
+
+    id = Column(String, primary_key=True, index=True)
+    from_account_id = Column(String, ForeignKey("accounts.id"), nullable=True)
+    to_account_id = Column(String, ForeignKey("accounts.id"), nullable=True)
+    amount = Column(Float, nullable=False)
+    type = Column(String, nullable=False)
+    timestamp = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+class Branch(Base):
+    __tablename__ = "branches"
+
+    branch_code = Column(String, primary_key=True, index=True)
+    branch_name = Column(String, nullable=False)
+    location = Column(String, nullable=False)
+    manager_id = Column(String, nullable=False)
+    staff_list = Column(String, nullable=True)
+
+
+def init_db() -> None:
+    """Create tables for the PostgreSQL schema."""
+    Base.metadata.create_all(bind=engine)

@@ -14,11 +14,16 @@ from controllers.customer_controller import router as customer_router
 from controllers.account_controller import router as account_router
 from controllers.transaction_controller import router as transaction_router
 
+from models.database import init_db
+
 app = FastAPI(
     title="Bank Management System API",
     description="RESTful API for managing customers, accounts, and transactions.",
     version="1.0.0",
 )
+
+# Create tables automatically if they do not yet exist.
+init_db()
 
 # Each controller module owns its own routes; main.py just registers
 # them under the versioned prefix + tag from the roadmap spec.
