@@ -1,5 +1,5 @@
 """
-Entry point for the Bank Management System REST API (FastAPI).
+Entry point for data management system REST API (FastAPI).
 
 This file is responsible ONLY for:
   - creating the FastAPI app instance

@@ -1,77 +1,61 @@
+import uuid
+from models.database import MongoManager
+from models.domain import Customer
 
-customers = [
-    {
-        "id": 1,
-        "first_name": "John",
-        "last_name": "Doe",
-        "email": "johndoe@gmail.com"
-    },
-    {
-        "id": 2,
-        "first_name": "JJ",
-        "last_name": "Lumibao",
-        "email": "jjlumibao@gmail.com"
-    },
-    {
-        "id": 3,
-        "first_name": "Ervin",
-        "last_name": "Gordon",
-        "email": "ervingordon@gmail.com"
-    },
-    {
-        "id": 4,
-        "first_name": "Aadib",
-        "last_name": "Uddin",
-        "email": "aadibuddin@gmail.com"
-    },
-    {
-        "id": 5,
-        "first_name": "Dustin",
-        "last_name": "Allen",
-        "email": "dustinallen@gmail.com"
-    },
-]
+# Instantiate the database connection
+db = MongoManager()
 
+def get_all_customers() -> list:
+    """Fetches all customers from the database."""
+
+    customers = list(db.customers.find({}))
+    for c in customers:
+        c["id"] = c.pop("_id")
+    return customers
+
+def get_customers_by_id(customer_id: str) -> dict:
+    """Fetches a single customer by their ID."""
+    customer = db.customers.find_one({"_id": customer_id})
+    if not customer:
+        raise ValueError(f"Customer with ID {customer_id} not found.")
+    
+    customer["id"] = customer.pop("_id")
+    return customer
 
 def create_customer(customer_data: dict) -> dict:
-   # 1. Generate a new ID based on current list length
-   new_id = len(customers) + 1
+    """Creates a new customer domain object and saves it to the database."""
+    new_id = str(uuid.uuid4())[:8]
+    
+    new_customer = Customer(
+        customer_id=new_id,
+        name=f"{customer_data.get('first_name', '')} {customer_data.get('last_name', '')}".strip(),
+        email=customer_data.get("email"),
+        branch_id=str(customer_data.get("branch_id", "UNKNOWN")),
+        active=True
+    )
+    
+    db.save_customer(new_customer)
+    
+    return get_customers_by_id(new_id)
+
+def update_customer(customer_id: str, updated_data: dict) -> dict:
+    """Updates specific fields of an existing customer."""
   
-   # 2. Assign the ID to the dictionary
-   customer_data["id"] = new_id
-  
-   # 3. Append to global list
-   customers.append(customer_data)
-  
-   # 4. Return the newly created record
-   return customer_data
+    existing = db.customers.find_one({"_id": customer_id})
+    if not existing:
+        raise ValueError(f"Customer with ID {customer_id} not found.")
+    
+    db.customers.update_one({"_id": customer_id}, {"$set": updated_data})
+    
+    return get_customers_by_id(customer_id)
 
+def deactivate_customer(customer_id: str) -> dict:
+    """Soft-deletes a customer by setting their active status to False."""
 
-def get_customers_by_id(customer_id: int) -> dict:
-   #iterates through the list of customers and returns the customer with the matching ID
-   for customer in customers:
-       #Verifys is the customer ID matches the ID passed in the fuction
-       if customer["id"] == customer_id:
-           return customer
-   #If the customer ID is not found in the list, raise a ValueError   
-   raise ValueError(f"Customer with ID {customer_id} not found.")
-
-
-def update_customer(customer_id: int, updated_data: dict) -> dict:
-   #Iterates through the list of customers and updates the customer with the matching ID
-   for customer in customers:
-       if customer["id"] == customer_id:
-           #Updates the customer data with the new data passed in the function
-           customer.update(updated_data)
-           return customer
-   #If the customer ID is not found in the list, raise a ValueError
-   raise ValueError(f"Customer with ID {customer_id} not found.")
-
-
-def deactivate_customer(customer_id: int):
-   #Iterates through the list of customers and deactivates the customer with the matching ID
-   for customer in customers:
-       if customer["id"] == customer_id:
-           #Sets the active status of the customer to False
-           customer["active"] = False
-           return customer
+    existing = db.customers.find_one({"_id": customer_id})
+    if not existing:
+        raise ValueError(f"Customer with ID {customer_id} not found.")
+    
+    db.customers.update_one({"_id": customer_id}, {"$set": {"active": False}})
+    
+    return get_customers_by_id(customer_id)

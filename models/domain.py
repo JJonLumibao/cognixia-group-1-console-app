@@ -13,16 +13,25 @@ class TransactionType(Enum):
     TRANSFER = "Transfer"
 
 class Transaction:
-    """Represents a single movement of funds between accounts."""
-
-    def __init__(self, from_account: Optional[str], to_account: Optional[str],
-                 amount: float, transaction_type: TransactionType):
-        self.transaction_id: str = str(uuid.uuid4())[:8]
-        self.from_account = from_account
-        self.to_account = to_account
+    """Represents a financial transaction between accounts."""
+    def __init__(self, from_account, to_account, amount, transaction_type):
+        self.transaction_id = str(uuid.uuid4())[:8]
+        self.from_account_id = from_account
+        self.to_account_id = to_account
         self.amount = amount
-        self.timestamp: datetime = datetime.now()
         self.type = transaction_type
+        self.timestamp = datetime.utcnow()
+
+class Customer:
+    """Represents a bank customer with personal details and associated accounts."""
+
+    def __init__(self, customer_id: str, name: str, email: str, branch_id: str, active: bool = True):
+        self.id = customer_id
+        self.name = name
+        self.email = email
+        self.branch_id = branch_id
+        self.active = active
+        self.accounts: List[str] = []
 
 class Branch:
     """Stores metadata for a bank branch and its staff."""

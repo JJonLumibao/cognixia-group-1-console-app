@@ -1,42 +1,78 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+from typing import Optional, List
+from datetime import datetime
 
 class DepositRequest(BaseModel):
-    amount: float
+    # Field(gt=0) enforces the amount must be greater than 0 at the API level
+    amount: float = Field(..., gt=0, description="Deposit amount must be positive")
 
 class WithdrawRequest(BaseModel):
-    amount: float
+    amount: float = Field(..., gt=0, description="Withdrawal amount must be positive")
 
 class AccountResponse(BaseModel):
-    id: int
-    customer_id: int
+    id: str  # Updated to str to match MongoDB / Domain IDs
+    owner_id: str  # Updated from customer_id to match our Account class
     account_type: str
     balance: float
-    branch_id: int
-    active: bool
+    branch_id: str 
+    active: bool = True
 
 class AccountCreate(BaseModel):
-    customer_id: int
-    account_type: str
+    owner_id: str
+    account_type: str  # e.g., "Checking" or "Savings"
     balance: float = 0.00
-    branch_id: int
+    branch_id: str
+    
+    # Optional fields to handle our specific child classes
+    min_balance: Optional[float] = 100.0        # For SavingsAccount
+    overdraft_limit: Optional[float] = 500.0    # For CheckingAccount
 
 class TransferRequest(BaseModel):
-    from_account_id: int
-    to_account_id: int
-    amount: float
-
+    from_account_id: str
+    to_account_id: str
+    amount: float = Field(..., gt=0)
 
 class TransactionResponse(BaseModel):
-    id: int
-    from_account_id: int
-    to_account_id: int
+    id: str
+    # Made optional because deposits/withdrawals only use one of these
+    from_account_id: Optional[str] = None 
+    to_account_id: Optional[str] = None
     amount: float
-    type: str
-    date: str
+    type: str  # "Deposit", "Withdrawal", or "Transfer"
+    timestamp: datetime  # Updated from string to native datetime
 
 class CustomerResponse(BaseModel):
-   id: int
-   first_name: str
-   last_name: str
-   email: str
-   active: bool
+    id: str
+    name: str
+    email: str
+    branch_id: str
+    active: bool
+    accounts: List[str] = []   
+
+class CustomerCreate(BaseModel):
+    """Schema for creating a new customer"""
+    first_name: str
+    last_name: str
+    email: str
+    branch_id: str
+
+class CustomerUpdate(BaseModel):
+    """Schema for updating an existing customer. All fields are optional."""
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    email: Optional[str] = None
+    branch_id: Optional[str] = None
+    active: Optional[bool] = None
+
+class TransactionCreate(BaseModel):
+    """Schema for creating a new transaction"""
+    from_account: Optional[str] = None
+    to_account: Optional[str] = None
+    amount: float
+    transaction_type: str
+
+class TransferCreate(BaseModel):
+    """Schema specifically for account-to-account transfers"""
+    from_account_id: str
+    to_account_id: str
+    amount: float

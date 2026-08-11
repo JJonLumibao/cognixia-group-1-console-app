@@ -1,4 +1,7 @@
+# .gitignore
 venv/
 test_main.py
 __pycache__/
 *.pyc
+.env
+migrate.py

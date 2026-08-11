@@ -1,35 +1,26 @@
-from fastapi import APIRouter, status, Query
-from typing import List, Optional
-from datetime import date
-
+from fastapi import APIRouter, status, HTTPException
+from typing import List
 from models import schemas
-from services.transaction_service import TransactionService
-
+from services import transaction_service # Adjust this import if your file is named differently
 
 router = APIRouter()
 
+@router.post("", response_model=schemas.TransactionResponse, status_code=status.HTTP_201_CREATED)
+def create_transaction(payload: schemas.TransactionCreate):
+    try:
+        # .model_dump() converts Pydantic schema to dict
+        return transaction_service.create_transaction(payload.model_dump())
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
-# Process a money transfer between two existing bank accounts.
-@router.post(
-    "/transfer",
-    response_model=schemas.TransactionResponse,
-    status_code=status.HTTP_201_CREATED
-)
-def transfer_money(payload: schemas.TransferRequest):
-    return TransactionService.transfer_money(payload)
+@router.get("", response_model=List[schemas.TransactionResponse])
+def get_transactions():
+    return transaction_service.get_transactions()
 
-
-# Retrieve transaction records, with optional filtering by date and transaction type.
-@router.get(
-    "",
-    response_model=List[schemas.TransactionResponse],
-    status_code=status.HTTP_200_OK
-)
-def get_transactions(
-    start_date: Optional[date] = Query(default=None),
-    type: Optional[str] = Query(default=None)
-):
-    return TransactionService.get_transactions(
-        start_date=start_date,
-        transaction_type=type
-    )
+@router.post("/transfer", response_model=schemas.TransactionResponse, status_code=status.HTTP_201_CREATED)
+def transfer_funds(payload: schemas.TransferCreate):
+    try:
+        # Calls the specific transfer_money function we built in the service layer
+        return transaction_service.transfer_money(payload.model_dump())
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
