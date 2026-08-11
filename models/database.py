@@ -37,6 +37,7 @@ class MongoManager:
             "name": customer.name,
             "email": customer.email,
             "branch_id": customer.branch_id,
+            "active": customer.active,
             "accounts": customer.accounts
         }
         self.customers.update_one({"_id": customer.id}, {"$set": customer_data}, upsert=True)

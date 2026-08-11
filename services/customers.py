@@ -21,7 +21,7 @@ customers = [
         "id": 4,
         "first_name": "Aadib",
         "last_name": "Uddin",
-        "email": "aadibuddin@gmail.com"
+        "email": "aadib.uddin@gmail.com"
     },
     {
         "id": 5,

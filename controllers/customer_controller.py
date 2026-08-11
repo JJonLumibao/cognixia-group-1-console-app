@@ -1,7 +1,7 @@
 from fastapi import APIRouter, status, HTTPException
 from typing import List
 from models import schemas
-from services import customers 
+from services import customer_service as customers
 
 router = APIRouter()
 
