@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, EmailStr, Field
 from typing import Optional, List
 from datetime import datetime
 
@@ -76,3 +76,19 @@ class TransferCreate(BaseModel):
     from_account_id: str
     to_account_id: str
     amount: float
+
+class RegisterRequest(BaseModel):
+    email: EmailStr
+    password: str
+    role: str = "CUSTOMER"
+
+
+class LoginRequest(BaseModel):
+    email: EmailStr
+    password: str
+
+
+class TokenResponse(BaseModel):
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"

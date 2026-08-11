@@ -13,6 +13,7 @@ from fastapi import FastAPI
 from controllers.customer_controller import router as customer_router
 from controllers.account_controller import router as account_router
 from controllers.transaction_controller import router as transaction_router
+from controllers.auth_controller import router as auth_router
 
 from models.database import init_db
 
@@ -30,7 +31,7 @@ init_db()
 app.include_router(customer_router, prefix="/api/v1/customers", tags=["Customers"])
 app.include_router(account_router, prefix="/api/v1/accounts", tags=["Accounts"])
 app.include_router(transaction_router, prefix="/api/v1/transactions", tags=["Transactions"])
-
+app.include_router(auth_router, prefix="/api/v1/auth", tags=["Authentication"])
 
 @app.get("/", tags=["Health"])
 def health_check():
