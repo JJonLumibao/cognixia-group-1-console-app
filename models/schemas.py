@@ -33,3 +33,10 @@ class TransactionResponse(BaseModel):
     amount: float
     type: str
     date: str
+
+class CustomerResponse(BaseModel):
+   id: int
+   first_name: str
+   last_name: str
+   email: str
+   active: bool
