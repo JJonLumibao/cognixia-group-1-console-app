@@ -1,68 +1,51 @@
+import uuid
 from fastapi import HTTPException
+from models.database import MongoManager
 
-from services.accounts import accounts
-from services.customers import customers
-
+# Instantiate the database connection for account operations.
+db = MongoManager()
 
 class AccountService:
 
     @staticmethod
     def create_account(payload):
-
         # Verify that the customer exists before creating the account.
-        customer = next(
-            (
-                customer
-                for customer in customers
-                if customer["id"] == payload.customer_id
-            ),
-            None
-        )
-
+        customer = db.customers.find_one({"_id": payload.owner_id})
         if customer is None:
-            raise HTTPException(
-                status_code=404,
-                detail="Customer not found"
-            )
+            raise HTTPException(status_code=404, detail="Customer not found")
 
-        # Generate a new account ID.
-        new_id = max(account["id"] for account in accounts) + 1
-
-        # Create the new account.
+        # Generate a new account ID and persist the account document.
+        new_id = str(uuid.uuid4())[:8]
         new_account = {
-            "id": new_id,
-            "customer_id": payload.customer_id,
+            "_id": new_id,
+            "owner_id": payload.owner_id,
             "account_type": payload.account_type,
-            "balance": payload.balance,
+            "balance": float(payload.balance),
             "branch_id": payload.branch_id,
             "active": True
         }
 
-        # Store the account in the in-memory data.
-        accounts.append(new_account)
+        db.accounts.insert_one(new_account)
+        db.customers.update_one(
+            {"_id": payload.owner_id},
+            {"$addToSet": {"accounts": new_id}}
+        )
 
+        new_account["id"] = new_account.pop("_id")
         return new_account
 
     @staticmethod
     def get_accounts(branch_id=None, min_balance=None):
+        query = {}
 
-        # Start with all accounts.
-        filtered_accounts = accounts
-
-        # Filter accounts by branch when branch_id is provided.
         if branch_id is not None:
-            filtered_accounts = [
-                account
-                for account in filtered_accounts
-                if account["branch_id"] == branch_id
-            ]
+            query["branch_id"] = str(branch_id)
 
-        # Filter accounts by minimum balance when provided.
         if min_balance is not None:
-            filtered_accounts = [
-                account
-                for account in filtered_accounts
-                if account["balance"] >= min_balance
-            ]
+            query["balance"] = {"$gte": float(min_balance)}
 
-        return filtered_accounts
+        accounts = list(db.accounts.find(query))
+        for account in accounts:
+            account["id"] = account.pop("_id")
+
+        return accounts

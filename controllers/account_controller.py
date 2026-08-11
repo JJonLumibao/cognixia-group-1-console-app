@@ -25,7 +25,7 @@ def create_account(payload: schemas.AccountCreate):
     status_code=status.HTTP_200_OK
 )
 def get_accounts(
-    branch_id: Optional[int] = Query(default=None),
+    branch_id: Optional[str] = Query(default=None),
     min_balance: Optional[float] = Query(default=None)
 ):
     return AccountService.get_accounts(

@@ -1,5 +1,4 @@
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from typing import List, Optional
@@ -14,8 +13,9 @@ class TransactionType(Enum):
 
 class Transaction:
     """Represents a financial transaction between accounts."""
-    def __init__(self, from_account, to_account, amount, transaction_type):
-        self.transaction_id = str(uuid.uuid4())[:8]
+
+    def __init__(self, from_account: Optional[str], to_account: Optional[str], amount: float, transaction_type: TransactionType):
+        self.transaction_id: str = str(uuid.uuid4())[:8]
         self.from_account_id = from_account
         self.to_account_id = to_account
         self.amount = amount
@@ -109,12 +109,3 @@ class CheckingAccount(BankAccount):
     def get_balance(self) -> float:
         """Return the current checking account balance."""
         return self._balance
- 
-    
-@dataclass
-class Customer:
-   customer_id: int
-   first_name: str
-   last_name: str
-   email: str
-   active: bool = True
