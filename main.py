@@ -6,9 +6,6 @@ This file is responsible ONLY for:
   - wiring together the routers built by the controllers/ layer
   - app-level metadata and a health check
 
-Business logic belongs in services/, data schemas belong in models/,
-and request handling / routing belongs in controllers/. main.py stays
-thin -- it's glue, not logic.
 """
 
 from fastapi import FastAPI
