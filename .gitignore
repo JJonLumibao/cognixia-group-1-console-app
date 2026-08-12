@@ -5,4 +5,4 @@ __pycache__/
 *.pyc
 .env
 migrate.py
-init_db.py
+init_db.py.DS_Store
