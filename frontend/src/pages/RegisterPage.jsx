@@ -11,7 +11,7 @@ import {
   MenuItem,
 } from "@mui/material";
 import { useAuth } from "../context/AuthContext";
-import { ROLES } from "../constants/roles";
+import { ROLES, STAFF_ROLES } from "../constants/roles";
 
 const ROLE_OPTIONS = Object.values(ROLES);
 
@@ -30,9 +30,10 @@ export default function RegisterPage() {
     setError("");
     setSubmitting(true);
     try {
-      await register(form);
+      const user = await register(form);
       setSuccess(true);
-      setTimeout(() => navigate("/login"), 1200);
+      const isStaff = user.roles.some((r) => STAFF_ROLES.includes(r));
+      setTimeout(() => navigate(isStaff ? "/dashboard" : "/portal"), 800);
     } catch (err) {
       setError(err.response?.data?.detail || "Registration failed.");
     } finally {
@@ -54,7 +55,7 @@ export default function RegisterPage() {
         )}
         {success && (
           <Alert severity="success" sx={{ mb: 2 }}>
-            Account created! Redirecting to login...
+            Account created! Redirecting...
           </Alert>
         )}
 

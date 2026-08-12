@@ -4,6 +4,10 @@ export function getCustomers() {
   return apiClient.get("/customers").then((res) => res.data);
 }
 
+export function getMyCustomer() {
+  return apiClient.get("/customers/me").then((res) => res.data);
+}
+
 export function getCustomer(customerId) {
   return apiClient.get(`/customers/${customerId}`).then((res) => res.data);
 }

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Box,
   Paper,
@@ -16,14 +16,15 @@ import {
   CircularProgress,
 } from "@mui/material";
 import { getAccounts } from "../api/accounts";
-import { getTransactions, transferFunds } from "../api/transactions";
+import { transferFunds } from "../api/transactions";
+import { getMyCustomer } from "../api/customers";
 
 export default function CustomerPortalPage() {
+  const [customer, setCustomer] = useState(null);
   const [accounts, setAccounts] = useState([]);
-  const [transactions, setTransactions] = useState([]);
-  const [ownerFilter, setOwnerFilter] = useState("");
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
+  const [noProfile, setNoProfile] = useState(false);
 
   const [transfer, setTransfer] = useState({ from_account_id: "", to_account_id: "", amount: "" });
   const [transferStatus, setTransferStatus] = useState({ error: "", success: "" });
@@ -32,34 +33,31 @@ export default function CustomerPortalPage() {
   const loadData = async () => {
     setLoading(true);
     setLoadError("");
+    setNoProfile(false);
     try {
-      const [accountsData, transactionsData] = await Promise.all([getAccounts(), getTransactions()]);
+      // GET /accounts is auto-filtered to the logged-in customer's own accounts.
+      const accountsData = await getAccounts();
       setAccounts(accountsData);
-      setTransactions(transactionsData);
     } catch (err) {
-      setLoadError(err.response?.data?.detail || "Failed to load account data.");
-    } finally {
-      setLoading(false);
+      if (err.response?.status === 404) {
+        setNoProfile(true);
+      } else {
+        setLoadError(err.response?.data?.detail || "Failed to load account data.");
+      }
     }
+
+    try {
+      setCustomer(await getMyCustomer());
+    } catch {
+      // No matching customer profile yet — accounts fetch above already surfaces this.
+    }
+
+    setLoading(false);
   };
 
   useEffect(() => {
     loadData();
   }, []);
-
-  const visibleAccounts = useMemo(() => {
-    if (!ownerFilter.trim()) return accounts;
-    return accounts.filter((a) => a.owner_id.toLowerCase().includes(ownerFilter.trim().toLowerCase()));
-  }, [accounts, ownerFilter]);
-
-  const accountIds = useMemo(() => new Set(visibleAccounts.map((a) => a.id)), [visibleAccounts]);
-
-  const visibleTransactions = useMemo(() => {
-    if (!ownerFilter.trim()) return transactions;
-    return transactions.filter(
-      (t) => accountIds.has(t.from_account_id) || accountIds.has(t.to_account_id)
-    );
-  }, [transactions, accountIds, ownerFilter]);
 
   const handleTransferSubmit = async (e) => {
     e.preventDefault();
@@ -81,10 +79,24 @@ export default function CustomerPortalPage() {
     }
   };
 
+  if (!loading && noProfile) {
+    return (
+      <Box sx={{ p: 3 }}>
+        <Typography variant="h4" gutterBottom>
+          Customer Portal
+        </Typography>
+        <Alert severity="warning">
+          No customer profile is linked to your account yet. Ask a branch manager to add you as a
+          customer using the same email you registered with.
+        </Alert>
+      </Box>
+    );
+  }
+
   return (
     <Box sx={{ p: 3 }}>
       <Typography variant="h4" gutterBottom>
-        Customer Portal
+        Customer Portal{customer ? ` — Welcome, ${customer.name}` : ""}
       </Typography>
 
       {loadError && <Alert severity="error" sx={{ mb: 2 }}>{loadError}</Alert>}
@@ -92,15 +104,9 @@ export default function CustomerPortalPage() {
       <Grid container spacing={3}>
         <Grid size={{ xs: 12, md: 7 }}>
           <Paper sx={{ p: 3 }}>
-            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
-              <Typography variant="h6">My Accounts</Typography>
-              <TextField
-                size="small"
-                label="Filter by owner/customer ID"
-                value={ownerFilter}
-                onChange={(e) => setOwnerFilter(e.target.value)}
-              />
-            </Box>
+            <Typography variant="h6" gutterBottom>
+              My Accounts
+            </Typography>
 
             {loading ? (
               <CircularProgress size={24} />
@@ -116,7 +122,7 @@ export default function CustomerPortalPage() {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {visibleAccounts.map((a) => (
+                  {accounts.map((a) => (
                     <TableRow key={a.id}>
                       <TableCell>{a.id}</TableCell>
                       <TableCell>{a.account_type}</TableCell>
@@ -131,52 +137,10 @@ export default function CustomerPortalPage() {
                       </TableCell>
                     </TableRow>
                   ))}
-                  {visibleAccounts.length === 0 && (
+                  {accounts.length === 0 && (
                     <TableRow>
                       <TableCell colSpan={5} align="center">
                         No accounts found.
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            )}
-          </Paper>
-
-          <Paper sx={{ p: 3, mt: 3 }}>
-            <Typography variant="h6" gutterBottom>
-              Transaction History
-            </Typography>
-            {loading ? (
-              <CircularProgress size={24} />
-            ) : (
-              <Table size="small">
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Date</TableCell>
-                    <TableCell>Type</TableCell>
-                    <TableCell>From</TableCell>
-                    <TableCell>To</TableCell>
-                    <TableCell align="right">Amount</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {visibleTransactions
-                    .slice()
-                    .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
-                    .map((t) => (
-                      <TableRow key={t.id}>
-                        <TableCell>{new Date(t.timestamp).toLocaleString()}</TableCell>
-                        <TableCell>{t.type}</TableCell>
-                        <TableCell>{t.from_account_id || "-"}</TableCell>
-                        <TableCell>{t.to_account_id || "-"}</TableCell>
-                        <TableCell align="right">${t.amount.toFixed(2)}</TableCell>
-                      </TableRow>
-                    ))}
-                  {visibleTransactions.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={5} align="center">
-                        No transactions found.
                       </TableCell>
                     </TableRow>
                   )}
@@ -190,6 +154,9 @@ export default function CustomerPortalPage() {
           <Paper sx={{ p: 3 }} component="form" onSubmit={handleTransferSubmit}>
             <Typography variant="h6" gutterBottom>
               Transfer Money
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              You can only transfer from an account you own.
             </Typography>
 
             {transferStatus.error && <Alert severity="error" sx={{ mb: 2 }}>{transferStatus.error}</Alert>}
@@ -217,7 +184,7 @@ export default function CustomerPortalPage() {
               fullWidth
               required
               margin="normal"
-              inputProps={{ step: "0.01", min: "0.01" }}
+              slotProps={{ htmlInput: { step: "0.01", min: "0.01" } }}
               value={transfer.amount}
               onChange={(e) => setTransfer({ ...transfer, amount: e.target.value })}
             />

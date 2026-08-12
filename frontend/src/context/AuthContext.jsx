@@ -19,26 +19,34 @@ function readStoredUser() {
   };
 }
 
+function storeTokens(data) {
+  localStorage.setItem("access_token", data.access_token);
+  localStorage.setItem("refresh_token", data.refresh_token);
+  const claims = decodeJwt(data.access_token);
+  return {
+    id: claims?.sub,
+    email: claims?.email,
+    roles: claims?.roles || [],
+    token: data.access_token,
+  };
+}
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(readStoredUser);
 
   const login = async ({ email, password }) => {
     const data = await loginUser({ email, password });
-    localStorage.setItem("access_token", data.access_token);
-    localStorage.setItem("refresh_token", data.refresh_token);
-    const claims = decodeJwt(data.access_token);
-    const nextUser = {
-      id: claims?.sub,
-      email: claims?.email,
-      roles: claims?.roles || [],
-      token: data.access_token,
-    };
+    const nextUser = storeTokens(data);
     setUser(nextUser);
     return nextUser;
   };
 
   const register = async ({ email, password, role }) => {
-    return registerUser({ email, password, role });
+    // Registering now logs the user in immediately (backend returns a TokenResponse).
+    const data = await registerUser({ email, password, role });
+    const nextUser = storeTokens(data);
+    setUser(nextUser);
+    return nextUser;
   };
 
   const logout = () => {
