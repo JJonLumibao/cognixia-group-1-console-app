@@ -1,5 +1,4 @@
 import os
-import uuid
 import bcrypt
 from jose import jwt
 
@@ -44,7 +43,8 @@ def verify_password(password: str, password_hash: str) -> bool:
 def create_access_token(
     user_id: str,
     email: str,
-    role: str
+    role: str,
+    branch_id: str | None = None
 ) -> str:
     """Create a short-lived JWT access token."""
 
@@ -54,6 +54,7 @@ def create_access_token(
         "sub": user_id,
         "email": email,
         "roles": [role],
+        "branch_id": branch_id,
         "type": "access",
         "iat": now,
         "exp": now + timedelta(
@@ -71,7 +72,8 @@ def create_access_token(
 def create_refresh_token(
     user_id: str,
     email: str,
-    role: str
+    role: str,
+    branch_id: str | None = None
 ) -> str:
     """Create a longer-lived JWT refresh token."""
 
@@ -81,6 +83,7 @@ def create_refresh_token(
         "sub": user_id,
         "email": email,
         "roles": [role],
+        "branch_id": branch_id,
         "type": "refresh",
         "iat": now,
         "exp": now + timedelta(
@@ -108,5 +111,5 @@ def decode_token(token: str) -> dict:
     except jwt.ExpiredSignatureError:
         raise ValueError("Token has expired")
 
-    except jwt.InvalidTokenError:
+    except jwt.JWTError:
         raise ValueError("Invalid token")

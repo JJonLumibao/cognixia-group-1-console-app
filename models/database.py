@@ -1,4 +1,5 @@
 ﻿import os
+import uuid
 from datetime import datetime
 from dotenv import load_dotenv
 from sqlalchemy import (
@@ -22,6 +23,10 @@ engine = create_engine(DATABASE_URL, echo=False, future=True)
 SessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False, future=True)
 Base = declarative_base()
 
+def generate_id() -> str:
+    """Generate a stable short identifier for database records."""
+    return uuid.uuid4().hex[:12]
+
 class User(Base):
     __tablename__ = "users"
 
@@ -29,6 +34,7 @@ class User(Base):
     email = Column(String, nullable=False, unique=True, index=True)
     password_hash = Column(String, nullable=False)
     role = Column(String, nullable=False, default="CUSTOMER")
+    branch_id = Column(String, nullable=True)
     active = Column(Boolean, nullable=False, default=True)
 
 class Customer(Base):

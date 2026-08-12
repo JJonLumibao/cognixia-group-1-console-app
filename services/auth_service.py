@@ -1,9 +1,7 @@
-import uuid
-
 from fastapi import HTTPException
 from sqlalchemy import select
 
-from models.database import SessionLocal, User
+from models.database import SessionLocal, User, generate_id
 from security.security import (
     hash_password,
     verify_password,
@@ -23,7 +21,8 @@ ALLOWED_ROLES = {
 def register_user(
     email: str,
     password: str,
-    role: str = "CUSTOMER"
+    role: str = "CUSTOMER",
+    branch_id: str | None = None
 ):
     """Create a new authenticated user."""
 
@@ -47,10 +46,11 @@ def register_user(
             )
 
         user = User(
-            id=str(uuid.uuid4())[:8],
+            id=generate_id(),
             email=email,
             password_hash=hash_password(password),
             role=role,
+            branch_id=branch_id,
             active=True
         )
 
@@ -58,7 +58,25 @@ def register_user(
         db.commit()
         db.refresh(user)
 
-        return user
+        access_token = create_access_token(
+            user.id,
+            user.email,
+            user.role,
+            branch_id=user.branch_id
+        )
+
+        refresh_token = create_refresh_token(
+            user.id,
+            user.email,
+            user.role,
+            branch_id=user.branch_id
+        )
+
+        return {
+            "access_token": access_token,
+            "refresh_token": refresh_token,
+            "token_type": "bearer"
+        }
 
     finally:
         db.close()
@@ -101,13 +119,15 @@ def login_user(
         access_token = create_access_token(
             user.id,
             user.email,
-            user.role
+            user.role,
+            branch_id=user.branch_id
         )
 
         refresh_token = create_refresh_token(
             user.id,
             user.email,
-            user.role
+            user.role,
+            branch_id=user.branch_id
         )
 
         return {

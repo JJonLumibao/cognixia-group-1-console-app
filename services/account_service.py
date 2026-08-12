@@ -1,18 +1,41 @@
-import uuid
 from fastapi import HTTPException
 from sqlalchemy import select
-from models.database import SessionLocal, Account as AccountORM, Customer as CustomerORM
+from models.database import SessionLocal, Account as AccountORM, Customer as CustomerORM, Branch as BranchORM, generate_id
 
 class AccountService:
 
     @staticmethod
-    def create_account(payload):
+    def create_account(payload, current_user=None):
         with SessionLocal() as session:
             customer = session.get(CustomerORM, payload.owner_id)
             if customer is None:
                 raise HTTPException(status_code=404, detail="Customer not found")
 
-            new_id = str(uuid.uuid4())[:8]
+            branch = session.get(BranchORM, payload.branch_id)
+            if branch is None:
+                raise HTTPException(status_code=404, detail="Branch not found")
+
+            if current_user and "CUSTOMER" in current_user.get("roles", []):
+                user_email = current_user.get("email")
+                own_customer = session.execute(
+                    select(CustomerORM).where(
+                        CustomerORM.email == user_email
+                    )
+                ).scalar_one_or_none()
+
+                if own_customer is None:
+                    raise HTTPException(
+                        status_code=404,
+                        detail="Customer profile not found"
+                    )
+
+                if own_customer.id != payload.owner_id:
+                    raise HTTPException(
+                        status_code=403,
+                        detail="Customers may only create accounts for themselves"
+                    )
+
+            new_id = generate_id()
             new_account = AccountORM(
                 id=new_id,
                 owner_id=payload.owner_id,

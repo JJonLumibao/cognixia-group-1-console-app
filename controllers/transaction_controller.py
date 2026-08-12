@@ -24,7 +24,10 @@ def deposit(
     current_user=Depends(require_roles("TELLER", "ADMIN"))
 ):
     try:
-        return transaction_service.deposit_money(payload.model_dump())
+        return transaction_service.deposit_money(
+            payload.model_dump(),
+            current_user
+        )
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -43,7 +46,10 @@ def withdraw(
     current_user=Depends(require_roles("TELLER", "ADMIN"))
 ):
     try:
-        return transaction_service.withdraw_money(payload.model_dump())
+        return transaction_service.withdraw_money(
+            payload.model_dump(),
+            current_user
+        )
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

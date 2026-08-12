@@ -1,6 +1,5 @@
-﻿import uuid
-from sqlalchemy import select
-from models.database import SessionLocal, Customer as CustomerORM
+﻿from sqlalchemy import select
+from models.database import SessionLocal, Customer as CustomerORM, generate_id
 
 
 def get_all_customers() -> list:
@@ -68,7 +67,7 @@ def get_customers_by_id(customer_id: str) -> dict:
 
 def create_customer(customer_data: dict) -> dict:
     """Creates a new customer and saves it to the database."""
-    new_id = str(uuid.uuid4())[:8]
+    new_id = generate_id()
     full_name = f"{customer_data.get('first_name', '')} {customer_data.get('last_name', '')}".strip()
 
     new_customer = CustomerORM(
@@ -119,13 +118,16 @@ def update_customer(customer_id: str, updated_data: dict) -> dict:
 
 
 def deactivate_customer(customer_id: str) -> dict:
-    """Soft-deletes a customer by setting their active status to False."""
+    """Soft-deletes a customer by setting their active status to False and deactivates related accounts."""
     with SessionLocal() as session:
         customer = session.get(CustomerORM, customer_id)
         if not customer:
             raise ValueError(f"Customer with ID {customer_id} not found.")
 
         customer.active = False
+        for account in customer.accounts:
+            account.active = False
+
         session.commit()
         session.refresh(customer)
 

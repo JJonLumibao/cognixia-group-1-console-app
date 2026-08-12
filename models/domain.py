@@ -15,7 +15,7 @@ class Transaction:
     """Represents a financial transaction between accounts."""
 
     def __init__(self, from_account: Optional[str], to_account: Optional[str], amount: float, transaction_type: TransactionType):
-        self.transaction_id: str = str(uuid.uuid4())[:8]
+        self.transaction_id: str = uuid.uuid4().hex[:12]
         self.from_account_id = from_account
         self.to_account_id = to_account
         self.amount = amount
