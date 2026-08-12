@@ -58,7 +58,23 @@ def register_user(
         db.commit()
         db.refresh(user)
 
-        return user
+        access_token = create_access_token(
+            user.id,
+            user.email,
+            user.role
+        )
+
+        refresh_token = create_refresh_token(
+            user.id,
+            user.email,
+            user.role
+        )
+
+        return {
+            "access_token": access_token,
+            "refresh_token": refresh_token,
+            "token_type": "bearer"
+        }
 
     finally:
         db.close()
