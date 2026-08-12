@@ -1,17 +1,10 @@
 import { useState } from "react";
 import { useNavigate, Link as RouterLink } from "react-router-dom";
-import {
-  Box,
-  Paper,
-  TextField,
-  Button,
-  Typography,
-  Alert,
-  Link,
-  MenuItem,
-} from "@mui/material";
+import { Box, TextField, Button, Typography, Alert, Link, MenuItem } from "@mui/material";
+import { motion } from "framer-motion";
 import { useAuth } from "../context/AuthContext";
 import { ROLES, STAFF_ROLES } from "../constants/roles";
+import AuthLayout from "../components/AuthLayout";
 
 const ROLE_OPTIONS = Object.values(ROLES);
 
@@ -42,12 +35,8 @@ export default function RegisterPage() {
   };
 
   return (
-    <Box sx={{ display: "flex", justifyContent: "center", mt: 8 }}>
-      <Paper sx={{ p: 4, width: 380 }} component="form" onSubmit={handleSubmit}>
-        <Typography variant="h5" gutterBottom>
-          Create Account
-        </Typography>
-
+    <AuthLayout eyebrow="Get started" title="Create your account" subtitle="Set up access in under a minute.">
+      <Box component="form" onSubmit={handleSubmit}>
         {error && (
           <Alert severity="error" sx={{ mb: 2 }}>
             {error}
@@ -55,36 +44,38 @@ export default function RegisterPage() {
         )}
         {success && (
           <Alert severity="success" sx={{ mb: 2 }}>
-            Account created! Redirecting...
+            Account created! Redirecting…
           </Alert>
         )}
 
+        <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
+          Email address
+        </Typography>
         <TextField
-          label="Email"
           type="email"
           fullWidth
           required
-          margin="normal"
+          placeholder="you@example.com"
           value={form.email}
           onChange={handleChange("email")}
         />
+
+        <Typography variant="subtitle2" sx={{ mt: 2, mb: 0.5 }}>
+          Password
+        </Typography>
         <TextField
-          label="Password"
           type="password"
           fullWidth
           required
-          margin="normal"
+          placeholder="••••••••"
           value={form.password}
           onChange={handleChange("password")}
         />
-        <TextField
-          select
-          label="Role"
-          fullWidth
-          margin="normal"
-          value={form.role}
-          onChange={handleChange("role")}
-        >
+
+        <Typography variant="subtitle2" sx={{ mt: 2, mb: 0.5 }}>
+          Role
+        </Typography>
+        <TextField select fullWidth value={form.role} onChange={handleChange("role")}>
           {ROLE_OPTIONS.map((role) => (
             <MenuItem key={role} value={role}>
               {role.replace("_", " ")}
@@ -92,14 +83,26 @@ export default function RegisterPage() {
           ))}
         </TextField>
 
-        <Button type="submit" variant="contained" fullWidth sx={{ mt: 2 }} disabled={submitting}>
-          {submitting ? "Creating..." : "Register"}
+        <Button
+          type="submit"
+          component={motion.button}
+          whileTap={{ scale: 0.98 }}
+          variant="contained"
+          fullWidth
+          size="large"
+          sx={{ mt: 3.5 }}
+          disabled={submitting}
+        >
+          {submitting ? "Creating…" : "Create Account"}
         </Button>
 
-        <Typography variant="body2" sx={{ mt: 2, textAlign: "center" }}>
-          Already have an account? <Link component={RouterLink} to="/login">Sign in</Link>
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 3, textAlign: "center" }}>
+          Already have an account?{" "}
+          <Link component={RouterLink} to="/login" underline="hover" sx={{ fontWeight: 600 }}>
+            Sign in
+          </Link>
         </Typography>
-      </Paper>
-    </Box>
+      </Box>
+    </AuthLayout>
   );
 }

@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { useNavigate, Link as RouterLink } from "react-router-dom";
-import { Box, Paper, TextField, Button, Typography, Alert, Link } from "@mui/material";
+import { Box, TextField, Button, Typography, Alert, Link } from "@mui/material";
+import { motion } from "framer-motion";
 import { useAuth } from "../context/AuthContext";
 import { STAFF_ROLES } from "../constants/roles";
+import AuthLayout from "../components/AuthLayout";
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -28,45 +30,58 @@ export default function LoginPage() {
   };
 
   return (
-    <Box sx={{ display: "flex", justifyContent: "center", mt: 8 }}>
-      <Paper sx={{ p: 4, width: 380 }} component="form" onSubmit={handleSubmit}>
-        <Typography variant="h5" gutterBottom>
-          Sign In
-        </Typography>
-
+    <AuthLayout eyebrow="Welcome back" title="Sign in to your account" subtitle="Enter your credentials to continue.">
+      <Box component="form" onSubmit={handleSubmit}>
         {error && (
           <Alert severity="error" sx={{ mb: 2 }}>
             {error}
           </Alert>
         )}
 
+        <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
+          Email address
+        </Typography>
         <TextField
-          label="Email"
           type="email"
           fullWidth
           required
-          margin="normal"
+          placeholder="you@example.com"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
         />
+
+        <Typography variant="subtitle2" sx={{ mt: 2, mb: 0.5 }}>
+          Password
+        </Typography>
         <TextField
-          label="Password"
           type="password"
           fullWidth
           required
-          margin="normal"
+          placeholder="••••••••"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />
 
-        <Button type="submit" variant="contained" fullWidth sx={{ mt: 2 }} disabled={submitting}>
-          {submitting ? "Signing in..." : "Sign In"}
+        <Button
+          type="submit"
+          component={motion.button}
+          whileTap={{ scale: 0.98 }}
+          variant="contained"
+          fullWidth
+          size="large"
+          sx={{ mt: 3.5 }}
+          disabled={submitting}
+        >
+          {submitting ? "Signing in…" : "Sign In"}
         </Button>
 
-        <Typography variant="body2" sx={{ mt: 2, textAlign: "center" }}>
-          Don't have an account? <Link component={RouterLink} to="/register">Register</Link>
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 3, textAlign: "center" }}>
+          Don't have an account?{" "}
+          <Link component={RouterLink} to="/register" underline="hover" sx={{ fontWeight: 600 }}>
+            Create one
+          </Link>
         </Typography>
-      </Paper>
-    </Box>
+      </Box>
+    </AuthLayout>
   );
 }
