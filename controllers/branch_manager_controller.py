@@ -1,7 +1,7 @@
 from fastapi import APIRouter, status, HTTPException, Depends
 
 from models import schemas
-from security.dependencies import get_current_user
+from security.dependencies import get_current_user, require_roles
 from services import branch_manager_service
 
 
