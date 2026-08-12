@@ -25,6 +25,80 @@ def get_transactions(
     return transaction_service.get_transactions()
 
 
+@router.get(
+    "/requests",
+    response_model=List[schemas.TransactionRequestResponse],
+    status_code=status.HTTP_200_OK
+)
+def list_transaction_requests(
+    current_user=Depends(require_roles("TELLER", "BRANCH_MANAGER", "ADMIN"))
+):
+    return transaction_service.get_transaction_requests(current_user)
+
+
+@router.post(
+    "/requests",
+    response_model=schemas.TransactionRequestResponse,
+    status_code=status.HTTP_201_CREATED
+)
+def create_transaction_request(
+    payload: schemas.TransactionRequestCreate,
+    current_user=Depends(require_roles("CUSTOMER", "TELLER", "BRANCH_MANAGER", "ADMIN"))
+):
+    try:
+        return transaction_service.create_transaction_request(
+            payload.model_dump(),
+            current_user
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+
+
+@router.patch(
+    "/requests/{request_id}/approve",
+    response_model=schemas.TransactionRequestResponse,
+    status_code=status.HTTP_200_OK
+)
+def approve_transaction_request(
+    request_id: str,
+    current_user=Depends(require_roles("TELLER", "BRANCH_MANAGER", "ADMIN"))
+):
+    try:
+        return transaction_service.approve_transaction_request(
+            request_id,
+            current_user
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+
+
+@router.patch(
+    "/requests/{request_id}/reject",
+    response_model=schemas.TransactionRequestResponse,
+    status_code=status.HTTP_200_OK
+)
+def reject_transaction_request(
+    request_id: str,
+    current_user=Depends(require_roles("TELLER", "BRANCH_MANAGER", "ADMIN"))
+):
+    try:
+        return transaction_service.reject_transaction_request(
+            request_id,
+            current_user
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+
+
 # Deposit money into a customer's account.
 #
 # Only tellers and administrators are allowed to perform deposits.

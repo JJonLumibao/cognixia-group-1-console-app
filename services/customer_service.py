@@ -1,5 +1,23 @@
-﻿from sqlalchemy import select
-from models.database import SessionLocal, Customer as CustomerORM, generate_id
+﻿from sqlalchemy import select, or_
+from models.database import (
+    SessionLocal,
+    Customer as CustomerORM,
+    Transaction as TransactionORM,
+    generate_customer_id,
+)
+
+
+def _transaction_ids_for_accounts(session, account_ids: list[str]) -> list[str]:
+    if not account_ids:
+        return []
+
+    stmt = select(TransactionORM.id).where(
+        or_(
+            TransactionORM.from_account_id.in_(account_ids),
+            TransactionORM.to_account_id.in_(account_ids)
+        )
+    )
+    return session.scalars(stmt).all()
 
 
 # Retrieve all customers from the database.
@@ -15,6 +33,10 @@ def get_all_customers() -> list:
                 "branch_id": customer.branch_id,
                 "active": customer.active,
                 "accounts": [account.id for account in customer.accounts],
+                "transactions": _transaction_ids_for_accounts(
+                    session,
+                    [account.id for account in customer.accounts]
+                ),
             }
             for customer in customers
         ]
@@ -37,16 +59,16 @@ def get_customer_by_email(email: str) -> dict:
                 "Customer profile not found for this user."
             )
 
+        account_ids = [account.id for account in customer.accounts]
+
         return {
             "id": customer.id,
             "name": customer.name,
             "email": customer.email,
             "branch_id": customer.branch_id,
             "active": customer.active,
-            "accounts": [
-                account.id
-                for account in customer.accounts
-            ],
+            "accounts": account_ids,
+            "transactions": _transaction_ids_for_accounts(session, account_ids),
         }
 
 
@@ -75,8 +97,8 @@ def get_customers_by_id(customer_id: str) -> dict:
 # Create a new customer and save the customer to the database.
 def create_customer(customer_data: dict) -> dict:
 
-    # Generate a unique ID for the new customer.
-    new_id = generate_id()
+    # Generate a hashed ID for the new customer.
+    new_id = generate_customer_id()
 
     # Combine first and last name into the database's single name field.
     full_name = f"{customer_data.get('first_name', '')} {customer_data.get('last_name', '')}".strip()

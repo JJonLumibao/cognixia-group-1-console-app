@@ -86,6 +86,11 @@ class TransactionResponse(BaseModel):
     # Unique transaction identifier.
     id: str
 
+    # Link back to the original transaction request for audit tracking.
+    # This makes it easy to correlate completed or rejected transactions
+    # with the pending request that generated them.
+    request_id: Optional[str] = None
+
     # Account money was taken from.
     # Optional because deposits do not have a source account.
     from_account_id: Optional[str] = None
@@ -100,8 +105,36 @@ class TransactionResponse(BaseModel):
     # Type of transaction: Deposit, Withdrawal, or Transfer.
     type: str
 
+    # Status of the transaction.
+    status: str
+
     # Date and time when the transaction occurred.
     timestamp: datetime
+
+
+# Request model used to capture pending deposit/withdrawal/transfer operations.
+class TransactionRequestCreate(BaseModel):
+    request_type: str
+    from_account_id: Optional[str] = None
+    to_account_id: Optional[str] = None
+    amount: float = Field(
+        ..., gt=0, description="Request amount must be positive"
+    )
+
+
+# Response model includes the request status and branch visibility metadata.
+class TransactionRequestResponse(BaseModel):
+    id: str
+    request_type: str
+    from_account_id: Optional[str] = None
+    to_account_id: Optional[str] = None
+    amount: float
+    status: str
+    requested_by: str
+    branch_id: Optional[str] = None
+    destination_branch_id: Optional[str] = None
+    transaction_id: Optional[str] = None
+    requested_at: datetime
 
 
 # CUSTOMER RESPONSE SCHEMA
@@ -115,6 +148,9 @@ class CustomerResponse(BaseModel):
 
     # List of account IDs belonging to the customer.
     accounts: List[str] = []
+
+    # List of transaction IDs associated with the customer's accounts.
+    transactions: List[str] = []
 
 
 # CUSTOMER CREATE SCHEMA

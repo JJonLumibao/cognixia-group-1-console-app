@@ -6,11 +6,340 @@ from sqlalchemy import select
 from models.database import (
     SessionLocal,
     Transaction as TransactionORM,
+    TransactionRequest as TransactionRequestORM,
     Account as AccountORM,
     Customer as CustomerORM,
     generate_id,
 )
-from models.domain import TransactionType
+from models.domain import TransactionType, RequestStatus, TransactionStatus
+
+
+def _transaction_request_to_dict(request):
+    return {
+        "id": request.id,
+        "request_type": request.request_type,
+        "from_account_id": request.from_account_id,
+        "to_account_id": request.to_account_id,
+        "amount": request.amount,
+        "status": request.status,
+        "requested_by": request.requested_by,
+        "branch_id": request.branch_id,
+        "destination_branch_id": request.destination_branch_id,
+        "transaction_id": request.transaction_id,
+        "requested_at": request.requested_at,
+    }
+
+
+def _enforce_branch_access_for_request(request, current_user):
+    if "ADMIN" in current_user.get("roles", []):
+        return
+
+    user_branch = current_user.get("branch_id")
+    if not user_branch:
+        raise ValueError("Branch staff must have a branch assigned")
+
+    visible = (
+        request.branch_id == user_branch
+        or request.destination_branch_id == user_branch
+    )
+
+    if not visible:
+        raise ValueError("Request is not visible for your branch")
+
+
+# Transaction requests are stored separately from executed transactions.
+# Branch staff may only view and approve/reject requests for their own branch.
+# ADMIN users can see and manage all requests across branches.
+def get_transaction_requests(current_user) -> list:
+    with SessionLocal() as session:
+        stmt = select(TransactionRequestORM)
+
+        if "ADMIN" not in current_user.get("roles", []):
+            user_branch = current_user.get("branch_id")
+            if not user_branch:
+                raise ValueError("Branch staff must have a branch assigned")
+
+            stmt = stmt.where(
+                (TransactionRequestORM.branch_id == user_branch)
+                | (TransactionRequestORM.destination_branch_id == user_branch)
+            )
+
+        requests = session.scalars(stmt).all()
+        return [_transaction_request_to_dict(r) for r in requests]
+
+
+def _validate_request_payload(payload: dict, current_user):
+    request_type = payload.get("request_type")
+    amount = float(payload.get("amount", 0))
+    from_account_id = payload.get("from_account_id")
+    to_account_id = payload.get("to_account_id")
+
+    if request_type not in {
+        TransactionType.DEPOSIT.value,
+        TransactionType.WITHDRAWAL.value,
+        TransactionType.TRANSFER.value,
+    }:
+        raise ValueError("Invalid request type")
+
+    if amount <= 0:
+        raise ValueError("Request amount must be greater than 0")
+
+    if request_type == TransactionType.DEPOSIT.value and not to_account_id:
+        raise ValueError("Deposit requests require a destination account")
+
+    if request_type == TransactionType.WITHDRAWAL.value and not from_account_id:
+        raise ValueError("Withdrawal requests require a source account")
+
+    if request_type == TransactionType.TRANSFER.value:
+        if not from_account_id or not to_account_id:
+            raise ValueError("Transfer requests require both source and destination accounts")
+        if from_account_id == to_account_id:
+            raise ValueError("Cannot transfer to the same account")
+
+    return request_type, from_account_id, to_account_id, amount
+
+
+def create_transaction_request(payload: dict, current_user: dict) -> dict:
+    request_type, from_account_id, to_account_id, amount = _validate_request_payload(
+        payload,
+        current_user
+    )
+
+    with SessionLocal() as session:
+        branch_id = None
+        destination_branch_id = None
+
+        if request_type == TransactionType.DEPOSIT.value:
+            account = session.get(AccountORM, to_account_id)
+            if not account:
+                raise ValueError("Destination account not found")
+            branch_id = account.branch_id
+            if "CUSTOMER" in current_user.get("roles", []):
+                user_email = current_user.get("email")
+                customer = session.execute(
+                    select(CustomerORM).where(CustomerORM.email == user_email)
+                ).scalar_one_or_none()
+                if not customer or customer.id != account.owner_id:
+                    raise ValueError("Customers may only request deposits to their own accounts")
+
+        elif request_type == TransactionType.WITHDRAWAL.value:
+            account = session.get(AccountORM, from_account_id)
+            if not account:
+                raise ValueError("Source account not found")
+            branch_id = account.branch_id
+            if "CUSTOMER" in current_user.get("roles", []):
+                user_email = current_user.get("email")
+                customer = session.execute(
+                    select(CustomerORM).where(CustomerORM.email == user_email)
+                ).scalar_one_or_none()
+                if not customer or customer.id != account.owner_id:
+                    raise ValueError("Customers may only request withdrawals from their own accounts")
+
+        else:
+            from_account = session.get(AccountORM, from_account_id)
+            to_account = session.get(AccountORM, to_account_id)
+            if not from_account:
+                raise ValueError("Source account not found")
+            if not to_account:
+                raise ValueError("Destination account not found")
+            branch_id = from_account.branch_id
+            destination_branch_id = to_account.branch_id
+            if "CUSTOMER" in current_user.get("roles", []):
+                user_email = current_user.get("email")
+                customer = session.execute(
+                    select(CustomerORM).where(CustomerORM.email == user_email)
+                ).scalar_one_or_none()
+                if not customer or customer.id != from_account.owner_id:
+                    raise ValueError("Customers may only request transfers from their own accounts")
+
+        if "ADMIN" not in current_user.get("roles", []):
+            user_branch = current_user.get("branch_id")
+            if not user_branch:
+                raise ValueError("Branch staff must have a branch assigned")
+            if branch_id != user_branch and destination_branch_id != user_branch:
+                raise ValueError("Requests must be created within your own branch")
+
+        request = TransactionRequestORM(
+            id=generate_id(),
+            request_type=request_type,
+            from_account_id=from_account_id,
+            to_account_id=to_account_id,
+            amount=amount,
+            status=RequestStatus.PENDING.value,
+            requested_by=current_user.get("sub"),
+            branch_id=branch_id,
+            destination_branch_id=destination_branch_id,
+        )
+
+        session.add(request)
+        session.flush()
+
+        transaction = TransactionORM(
+            id=generate_id(),
+            request_id=request.id,
+            from_account_id=from_account_id,
+            to_account_id=to_account_id,
+            amount=amount,
+            type=request_type,
+            status=TransactionStatus.PENDING.value,
+            timestamp=datetime.utcnow(),
+        )
+
+        session.add(transaction)
+        request.transaction_id = transaction.id
+        session.add(request)
+        session.commit()
+        session.refresh(request)
+
+        return _transaction_request_to_dict(request)
+
+
+def _apply_transaction_request(request_obj, session):
+    if request_obj.status != RequestStatus.PENDING.value:
+        raise ValueError("Only pending requests can be approved")
+
+    transaction = session.execute(
+        select(TransactionORM).where(TransactionORM.request_id == request_obj.id)
+    ).scalar_one_or_none()
+
+    if request_obj.request_type == TransactionType.DEPOSIT.value:
+        account = session.get(AccountORM, request_obj.to_account_id)
+        if not account:
+            raise ValueError("Destination account not found")
+        if not account.active:
+            raise ValueError("Destination account is inactive")
+        account.balance += request_obj.amount
+        if transaction is None:
+            transaction = TransactionORM(
+                id=generate_id(),
+                request_id=request_obj.id,
+                from_account_id=None,
+                to_account_id=account.id,
+                amount=request_obj.amount,
+                type=TransactionType.DEPOSIT.value,
+                status=TransactionStatus.COMPLETED.value,
+                timestamp=datetime.utcnow(),
+            )
+            session.add(transaction)
+        else:
+            transaction.status = TransactionStatus.COMPLETED.value
+
+    elif request_obj.request_type == TransactionType.WITHDRAWAL.value:
+        account = session.get(AccountORM, request_obj.from_account_id)
+        if not account:
+            raise ValueError("Source account not found")
+        if not account.active:
+            raise ValueError("Source account is inactive")
+        if account.balance < request_obj.amount:
+            raise ValueError("Insufficient funds")
+        account.balance -= request_obj.amount
+        if transaction is None:
+            transaction = TransactionORM(
+                id=generate_id(),
+                request_id=request_obj.id,
+                from_account_id=account.id,
+                to_account_id=None,
+                amount=request_obj.amount,
+                type=TransactionType.WITHDRAWAL.value,
+                status=TransactionStatus.COMPLETED.value,
+                timestamp=datetime.utcnow(),
+            )
+            session.add(transaction)
+        else:
+            transaction.status = TransactionStatus.COMPLETED.value
+
+    else:
+        from_account = session.get(AccountORM, request_obj.from_account_id)
+        to_account = session.get(AccountORM, request_obj.to_account_id)
+        if not from_account:
+            raise ValueError("Source account not found")
+        if not to_account:
+            raise ValueError("Destination account not found")
+        if not from_account.active:
+            raise ValueError("Source account is inactive")
+        if not to_account.active:
+            raise ValueError("Destination account is inactive")
+        if from_account.balance < request_obj.amount:
+            raise ValueError("Insufficient funds")
+        from_account.balance -= request_obj.amount
+        to_account.balance += request_obj.amount
+        if transaction is None:
+            transaction = TransactionORM(
+                id=generate_id(),
+                request_id=request_obj.id,
+                from_account_id=from_account.id,
+                to_account_id=to_account.id,
+                amount=request_obj.amount,
+                type=TransactionType.TRANSFER.value,
+                status=TransactionStatus.COMPLETED.value,
+                timestamp=datetime.utcnow(),
+            )
+            session.add(transaction)
+        else:
+            transaction.status = TransactionStatus.COMPLETED.value
+
+    session.add(transaction)
+    request_obj.status = RequestStatus.APPROVED.value
+    session.add(request_obj)
+
+
+def approve_transaction_request(request_id: str, current_user: dict) -> dict:
+    with SessionLocal() as session:
+        request = session.get(TransactionRequestORM, request_id)
+        if not request:
+            raise ValueError("Request not found")
+
+        # Branch staff may only approve requests visible to their branch.
+        # ADMIN users can approve any request across branches.
+        if "ADMIN" not in current_user.get("roles", []):
+            user_branch = current_user.get("branch_id")
+            if not user_branch:
+                raise ValueError("Branch staff must have a branch assigned")
+            if request.branch_id != user_branch and request.destination_branch_id != user_branch:
+                raise ValueError("Cannot approve requests outside your branch")
+
+        _apply_transaction_request(request, session)
+        session.commit()
+        session.refresh(request)
+
+        return _transaction_request_to_dict(request)
+
+
+def reject_transaction_request(request_id: str, current_user: dict) -> dict:
+    with SessionLocal() as session:
+        request = session.get(TransactionRequestORM, request_id)
+        if not request:
+            raise ValueError("Request not found")
+
+        if request.status != RequestStatus.PENDING.value:
+            raise ValueError("Only pending requests can be rejected")
+
+        if "ADMIN" not in current_user.get("roles", []):
+            user_branch = current_user.get("branch_id")
+            if not user_branch:
+                raise ValueError("Branch staff must have a branch assigned")
+            if request.branch_id != user_branch and request.destination_branch_id != user_branch:
+                raise ValueError("Cannot reject requests outside your branch")
+
+        request.status = RequestStatus.REJECTED.value
+
+        transaction = None
+        if request.transaction_id:
+            transaction = session.get(TransactionORM, request.transaction_id)
+        else:
+            transaction = session.execute(
+                select(TransactionORM).where(TransactionORM.request_id == request.id)
+            ).scalar_one_or_none()
+
+        if transaction is not None:
+            transaction.status = TransactionStatus.REJECTED.value
+            session.add(transaction)
+
+        session.add(request)
+        session.commit()
+        session.refresh(request)
+
+        return _transaction_request_to_dict(request)
 
 
 # Retrieve transactions, with optional filtering by date or transaction type.
@@ -42,10 +371,12 @@ def get_transactions(start_date=None, transaction_type=None) -> list:
         return [
             {
                 "id": txn.id,
+                "request_id": txn.request_id,
                 "from_account_id": txn.from_account_id,
                 "to_account_id": txn.to_account_id,
                 "amount": txn.amount,
                 "type": txn.type,
+                "status": txn.status,
                 "timestamp": txn.timestamp,
             }
             for txn in transactions
@@ -99,6 +430,7 @@ def deposit_money(payload: dict, current_user: dict) -> dict:
             to_account_id=account_id,
             amount=amount,
             type=TransactionType.DEPOSIT.value,
+            status=TransactionStatus.COMPLETED.value,
             timestamp=datetime.utcnow()
         )
 
@@ -109,10 +441,12 @@ def deposit_money(payload: dict, current_user: dict) -> dict:
         # Return the newly created transaction.
         return {
             "id": transaction.id,
+            "request_id": transaction.request_id,
             "from_account_id": transaction.from_account_id,
             "to_account_id": transaction.to_account_id,
             "amount": transaction.amount,
             "type": transaction.type,
+            "status": transaction.status,
             "timestamp": transaction.timestamp,
         }
 
@@ -171,6 +505,7 @@ def withdraw_money(payload: dict, current_user: dict) -> dict:
             to_account_id=None,
             amount=amount,
             type=TransactionType.WITHDRAWAL.value,
+            status=TransactionStatus.COMPLETED.value,
             timestamp=datetime.utcnow()
         )
 
@@ -181,10 +516,12 @@ def withdraw_money(payload: dict, current_user: dict) -> dict:
         # Return the newly created transaction.
         return {
             "id": transaction.id,
+            "request_id": transaction.request_id,
             "from_account_id": transaction.from_account_id,
             "to_account_id": transaction.to_account_id,
             "amount": transaction.amount,
             "type": transaction.type,
+            "status": transaction.status,
             "timestamp": transaction.timestamp,
         }
 
@@ -293,6 +630,7 @@ def transfer_money(payload: dict, current_user: dict) -> dict:
             to_account_id=to_account_id,
             amount=amount,
             type=TransactionType.TRANSFER.value,
+            status=TransactionStatus.COMPLETED.value,
             timestamp=datetime.utcnow(),
         )
 
@@ -303,9 +641,11 @@ def transfer_money(payload: dict, current_user: dict) -> dict:
         # Return the completed transfer transaction.
         return {
             "id": transaction_record.id,
+            "request_id": transaction_record.request_id,
             "from_account_id": transaction_record.from_account_id,
             "to_account_id": transaction_record.to_account_id,
             "amount": transaction_record.amount,
             "type": transaction_record.type,
+            "status": transaction_record.status,
             "timestamp": transaction_record.timestamp,
         }

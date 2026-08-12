@@ -1,5 +1,6 @@
 ﻿import os
 import uuid
+import hashlib
 from datetime import datetime
 from dotenv import load_dotenv
 from sqlalchemy import (
@@ -46,6 +47,13 @@ Base = declarative_base()
 # Generate a short unique identifier for database records.
 def generate_id() -> str:
     return uuid.uuid4().hex[:12]
+
+
+# Generate a customer identifier using a hashed form for additional obscurity.
+# This is separate from transaction/account IDs so customer IDs can be treated differently.
+def generate_customer_id() -> str:
+    raw_id = uuid.uuid4().hex
+    return hashlib.sha256(raw_id.encode("utf-8")).hexdigest()
 
 
 # USER DATABASE MODEL
@@ -135,6 +143,10 @@ class Transaction(Base):
     # Unique identifier for the transaction.
     id = Column(String, primary_key=True, index=True)
 
+    # Optional link back to a transaction request if this transaction
+    # started as a pending request.
+    request_id = Column(String, ForeignKey("transaction_requests.id"), nullable=True)
+
     # Account money is being taken from.
     # Nullable because deposits do not have a source account.
     from_account_id = Column(
@@ -157,8 +169,40 @@ class Transaction(Base):
     # Type of transaction: Deposit, Withdrawal, or Transfer.
     type = Column(String, nullable=False)
 
+    # Status of the transaction record.
+    # This allows tracking whether a transaction is completed or still pending.
+    status = Column(String, nullable=False, default="Completed")
+
     # Date and time when the transaction was created.
     timestamp = Column(
+        DateTime,
+        nullable=False,
+        default=datetime.utcnow
+    )
+
+
+class TransactionRequest(Base):
+    __tablename__ = "transaction_requests"
+
+    id = Column(String, primary_key=True, index=True)
+    request_type = Column(String, nullable=False)
+    from_account_id = Column(
+        String,
+        ForeignKey("accounts.id"),
+        nullable=True
+    )
+    to_account_id = Column(
+        String,
+        ForeignKey("accounts.id"),
+        nullable=True
+    )
+    amount = Column(Float, nullable=False)
+    status = Column(String, nullable=False, default="Pending")
+    requested_by = Column(String, nullable=False)
+    branch_id = Column(String, nullable=True)
+    destination_branch_id = Column(String, nullable=True)
+    transaction_id = Column(String, ForeignKey("transactions.id"), nullable=True)
+    requested_at = Column(
         DateTime,
         nullable=False,
         default=datetime.utcnow

@@ -14,6 +14,20 @@ class TransactionType(Enum):
     TRANSFER = "Transfer"
 
 
+class RequestStatus(Enum):
+
+    PENDING = "Pending"
+    APPROVED = "Approved"
+    REJECTED = "Rejected"
+
+
+class TransactionStatus(Enum):
+
+    PENDING = "Pending"
+    COMPLETED = "Completed"
+    REJECTED = "Rejected"
+
+
 # TRANSACTION DOMAIN MODEL
 # Represents a financial transaction between bank accounts.
 class Transaction:
