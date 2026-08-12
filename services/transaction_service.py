@@ -105,6 +105,13 @@ def create_transaction_request(payload: dict, current_user: dict) -> dict:
         current_user
     )
 
+    # Normalize empty-string account IDs to None so nullable FK columns
+    # are not populated with empty strings which violate FK constraints.
+    if from_account_id == "" or from_account_id is None:
+        from_account_id = None
+    if to_account_id == "" or to_account_id is None:
+        to_account_id = None
+
     with SessionLocal() as session:
         branch_id = None
         destination_branch_id = None
@@ -152,7 +159,10 @@ def create_transaction_request(payload: dict, current_user: dict) -> dict:
                 if not customer or customer.id != from_account.owner_id:
                     raise ValueError("Customers may only request transfers from their own accounts")
 
-        if "ADMIN" not in current_user.get("roles", []):
+        # Enforce branch membership only for branch staff (TELLER/BRANCH_MANAGER),
+        # not for `CUSTOMER` users who create requests for their own accounts.
+        roles = current_user.get("roles", [])
+        if "ADMIN" not in roles and "CUSTOMER" not in roles:
             user_branch = current_user.get("branch_id")
             if not user_branch:
                 raise ValueError("Branch staff must have a branch assigned")
