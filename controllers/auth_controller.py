@@ -14,7 +14,7 @@ router = APIRouter()
 # Registers a new user account.
 #
 # The request body contains the user's email, password, role,
-# and branch information.
+# and branch assignment. Users must select a branch when registering.
 @router.post(
     "/register",
     response_model=schemas.TokenResponse,

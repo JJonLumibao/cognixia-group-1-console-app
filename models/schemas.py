@@ -200,8 +200,9 @@ class RegisterRequest(BaseModel):
     # Defaults newly registered users to the CUSTOMER role.
     role: str = "CUSTOMER"
 
-    # Optional branch assignment for branch-specific users.
-    branch_id: Optional[str] = None
+    # Branch assignment for the user.
+    # All users must select a branch when registering.
+    branch_id: str
 
 
 # BRANCH CREATE SCHEMA

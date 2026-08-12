@@ -6,3 +6,4 @@ __pycache__/
 .env
 migrate.py
 init_db.py
+migrate_user_branches.py

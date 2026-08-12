@@ -1,7 +1,7 @@
 from fastapi import HTTPException
 from sqlalchemy import select
 
-from models.database import SessionLocal, User, generate_id
+from models.database import SessionLocal, User, Branch, generate_id
 from security.security import (
     hash_password,
     verify_password,
@@ -37,6 +37,12 @@ def register_user(
             detail="Invalid role"
         )
 
+    if branch_id is None or not str(branch_id).strip():
+        raise HTTPException(
+            status_code=400,
+            detail="Branch ID is required"
+        )
+
     # Open a database session.
     db = SessionLocal()
 
@@ -50,6 +56,17 @@ def register_user(
             raise HTTPException(
                 status_code=400,
                 detail="Email is already registered"
+            )
+
+        # Verify the requested branch exists before assigning it.
+        branch = db.execute(
+            select(Branch).where(Branch.branch_code == branch_id)
+        ).scalar_one_or_none()
+
+        if not branch:
+            raise HTTPException(
+                status_code=400,
+                detail="Branch ID does not exist"
             )
 
         # Create the new user record.
