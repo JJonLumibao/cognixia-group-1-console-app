@@ -16,7 +16,8 @@ def register(payload: schemas.RegisterRequest):
     return auth_service.register_user(
         email=payload.email,
         password=payload.password,
-        role=payload.role
+        role=payload.role,
+        branch_id=payload.branch_id,
     )
 
 

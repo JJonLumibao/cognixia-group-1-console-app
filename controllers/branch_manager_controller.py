@@ -1,7 +1,7 @@
 from fastapi import APIRouter, status, HTTPException, Depends
 
 from models import schemas
-from security.dependencies import require_roles
+from security.dependencies import get_current_user, require_roles
 from services import branch_manager_service
 
 
@@ -13,7 +13,7 @@ router = APIRouter()
     status_code=status.HTTP_200_OK
 )
 def get_branches(
-    current_user=Depends(require_roles("ADMIN"))
+    current_user=Depends(get_current_user)
 ):
     return branch_manager_service.get_all_branches()
 

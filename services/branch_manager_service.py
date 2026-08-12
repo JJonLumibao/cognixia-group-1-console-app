@@ -181,6 +181,8 @@ def create_branch(branch_data: dict) -> dict:
             staff_list=branch_data.get("staff_list")
         )
 
+        manager.branch_id = branch_data["branch_code"]
+
         session.add(new_branch)
         session.commit()
         session.refresh(new_branch)
@@ -219,7 +221,12 @@ def update_branch_manager(branch_code: str, manager_id: str) -> dict:
                 "User must have the BRANCH_MANAGER role."
             )
 
+        old_manager = session.get(UserORM, branch.manager_id)
+        if old_manager and old_manager.branch_id == branch_code:
+            old_manager.branch_id = None
+
         branch.manager_id = manager_id
+        manager.branch_id = branch_code
 
         session.commit()
         session.refresh(branch)

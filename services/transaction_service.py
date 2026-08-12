@@ -1,5 +1,4 @@
-﻿import uuid
-from datetime import datetime
+﻿from datetime import datetime
 
 from fastapi import HTTPException
 from sqlalchemy import select
@@ -7,7 +6,8 @@ from sqlalchemy import select
 from models.database import (
     SessionLocal,
     Transaction as TransactionORM,
-    Account as AccountORM
+    Account as AccountORM,
+    generate_id,
 )
 from models.domain import TransactionType
 
@@ -47,7 +47,7 @@ def get_transactions(start_date=None, transaction_type=None) -> list:
         ]
 
 
-def deposit_money(payload: dict) -> dict:
+def deposit_money(payload: dict, current_user: dict) -> dict:
     """Deposits money into a customer's account."""
 
     account_id = payload.get("account_id")
@@ -74,10 +74,16 @@ def deposit_money(payload: dict) -> dict:
                 detail="Account is inactive"
             )
 
+        if current_user.get("branch_id") is not None and current_user.get("branch_id") != account.branch_id:
+            raise HTTPException(
+                status_code=403,
+                detail="Cannot interact with an account outside your branch"
+            )
+
         account.balance += amount
 
         transaction = TransactionORM(
-            id=str(uuid.uuid4())[:8],
+            id=generate_id(),
             from_account_id=None,
             to_account_id=account_id,
             amount=amount,
@@ -99,7 +105,7 @@ def deposit_money(payload: dict) -> dict:
         }
 
 
-def withdraw_money(payload: dict) -> dict:
+def withdraw_money(payload: dict, current_user: dict) -> dict:
     """Withdraws money from a customer's account."""
 
     account_id = payload.get("account_id")
@@ -126,6 +132,12 @@ def withdraw_money(payload: dict) -> dict:
                 detail="Account is inactive"
             )
 
+        if current_user.get("branch_id") is not None and current_user.get("branch_id") != account.branch_id:
+            raise HTTPException(
+                status_code=403,
+                detail="Cannot interact with an account outside your branch"
+            )
+
         if account.balance < amount:
             raise HTTPException(
                 status_code=400,
@@ -135,7 +147,7 @@ def withdraw_money(payload: dict) -> dict:
         account.balance -= amount
 
         transaction = TransactionORM(
-            id=str(uuid.uuid4())[:8],
+            id=generate_id(),
             from_account_id=account_id,
             to_account_id=None,
             amount=amount,
@@ -185,6 +197,12 @@ def transfer_money(payload: dict, current_user: dict) -> dict:
                 detail="Sender account not found"
             )
 
+        if current_user.get("branch_id") is not None and current_user.get("branch_id") != from_account.branch_id:
+            raise HTTPException(
+                status_code=403,
+                detail="Cannot transfer from an account outside your branch"
+            )
+
         # CUSTOMER can only transfer from their own account
         if "CUSTOMER" in current_user.get("roles", []):
             user_id = current_user.get("sub")
@@ -224,7 +242,7 @@ def transfer_money(payload: dict, current_user: dict) -> dict:
         from_account.balance -= amount
         to_account.balance += amount
 
-        new_id = str(uuid.uuid4())[:8]
+        new_id = generate_id()
 
         transaction_record = TransactionORM(
             id=new_id,

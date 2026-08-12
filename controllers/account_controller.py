@@ -14,8 +14,11 @@ router = APIRouter()
     response_model=schemas.AccountResponse,
     status_code=status.HTTP_201_CREATED
 )
-def create_account(payload: schemas.AccountCreate):
-    return AccountService.create_account(payload)
+def create_account(
+    payload: schemas.AccountCreate,
+    current_user=Depends(require_roles("CUSTOMER", "ADMIN"))
+):
+    return AccountService.create_account(payload, current_user)
 
 
 # Retrieve all accounts, with optional filtering by branch and minimum balance.

@@ -70,6 +70,7 @@ class RegisterRequest(BaseModel):
     email: EmailStr
     password: str
     role: str = "CUSTOMER"
+    branch_id: Optional[str] = None
 
 class BranchCreate(BaseModel):
     branch_code: str
