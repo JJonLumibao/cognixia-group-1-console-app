@@ -2,10 +2,11 @@
 from models.database import SessionLocal, Customer as CustomerORM, generate_id
 
 
+# Retrieve all customers from the database.
 def get_all_customers() -> list:
-    """Fetches all customers from the database."""
     with SessionLocal() as session:
         customers = session.scalars(select(CustomerORM)).all()
+
         return [
             {
                 "id": customer.id,
@@ -19,8 +20,8 @@ def get_all_customers() -> list:
         ]
 
 
+# Retrieve the customer associated with the currently logged-in user's email.
 def get_customer_by_email(email: str) -> dict:
-    """Fetches the customer associated with the logged-in user's email."""
 
     with SessionLocal() as session:
 
@@ -30,6 +31,7 @@ def get_customer_by_email(email: str) -> dict:
             )
         ).scalar_one_or_none()
 
+        # Make sure a customer profile exists for the authenticated user.
         if not customer:
             raise ValueError(
                 "Customer profile not found for this user."
@@ -48,12 +50,17 @@ def get_customer_by_email(email: str) -> dict:
         }
 
 
+# Retrieve a specific customer using their customer ID.
 def get_customers_by_id(customer_id: str) -> dict:
-    """Fetches a single customer by their ID."""
+
     with SessionLocal() as session:
         customer = session.get(CustomerORM, customer_id)
+
+        # Return an error if the requested customer does not exist.
         if not customer:
-            raise ValueError(f"Customer with ID {customer_id} not found.")
+            raise ValueError(
+                f"Customer with ID {customer_id} not found."
+            )
 
         return {
             "id": customer.id,
@@ -65,9 +72,13 @@ def get_customers_by_id(customer_id: str) -> dict:
         }
 
 
+# Create a new customer and save the customer to the database.
 def create_customer(customer_data: dict) -> dict:
-    """Creates a new customer and saves it to the database."""
+
+    # Generate a unique ID for the new customer.
     new_id = generate_id()
+
+    # Combine first and last name into the database's single name field.
     full_name = f"{customer_data.get('first_name', '')} {customer_data.get('last_name', '')}".strip()
 
     new_customer = CustomerORM(
@@ -83,21 +94,28 @@ def create_customer(customer_data: dict) -> dict:
         session.commit()
         session.refresh(new_customer)
 
+    # Return the newly created customer's information.
     return get_customers_by_id(new_id)
 
 
+# Update specific fields for an existing customer.
 def update_customer(customer_id: str, updated_data: dict) -> dict:
-    """Updates specific fields of an existing customer."""
+
     with SessionLocal() as session:
         customer = session.get(CustomerORM, customer_id)
-        if not customer:
-            raise ValueError(f"Customer with ID {customer_id} not found.")
 
-        # Map Pydantic first_name/last_name into the ORM `name` column
+        # Make sure the customer exists before attempting an update.
+        if not customer:
+            raise ValueError(
+                f"Customer with ID {customer_id} not found."
+            )
+
+        # Map Pydantic first_name/last_name into the ORM `name` column.
         first = updated_data.pop("first_name", None)
         last = updated_data.pop("last_name", None)
+
         if first is not None or last is not None:
-            # Attempt to preserve the other name part when only one is provided
+            # Preserve the existing name portion when only first or last name is updated.
             existing = (customer.name or "").strip()
             parts = existing.split(" ", 1) if existing else []
             existing_first = parts[0] if len(parts) >= 1 else ""
@@ -105,30 +123,41 @@ def update_customer(customer_id: str, updated_data: dict) -> dict:
 
             new_first = first if first is not None else existing_first
             new_last = last if last is not None else existing_last
+
             customer.name = f"{new_first} {new_last}".strip()
 
-        # Apply any remaining updatable fields that map directly to columns
+        # Apply any remaining fields directly to the matching customer columns.
         for field, value in updated_data.items():
             setattr(customer, field, value)
 
         session.commit()
         session.refresh(customer)
 
+    # Return the updated customer.
     return get_customers_by_id(customer_id)
 
 
+# Deactivate a customer and all accounts belonging to that customer.
 def deactivate_customer(customer_id: str) -> dict:
-    """Soft-deletes a customer by setting their active status to False and deactivates related accounts."""
+
     with SessionLocal() as session:
         customer = session.get(CustomerORM, customer_id)
-        if not customer:
-            raise ValueError(f"Customer with ID {customer_id} not found.")
 
+        # Make sure the customer exists before deactivating them.
+        if not customer:
+            raise ValueError(
+                f"Customer with ID {customer_id} not found."
+            )
+
+        # Soft-delete the customer by marking them as inactive.
         customer.active = False
+
+        # Deactivate all accounts belonging to the customer.
         for account in customer.accounts:
             account.active = False
 
         session.commit()
         session.refresh(customer)
 
+    # Return the updated customer information.
     return get_customers_by_id(customer_id)
