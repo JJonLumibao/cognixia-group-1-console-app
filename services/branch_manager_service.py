@@ -41,20 +41,91 @@ def get_manager_branch(session, current_user):
 
 def get_all_branches() -> list:
     with SessionLocal() as session:
+
         branches = session.scalars(
             select(BranchORM)
         ).all()
 
-        return [
-            {
+        results = []
+
+        for branch in branches:
+
+            # -------------------------
+            # BRANCH PERFORMANCE
+            # -------------------------
+
+            total_accounts = session.scalar(
+                select(func.count(AccountORM.id))
+                .where(
+                    AccountORM.branch_id == branch.branch_code
+                )
+            )
+
+            active_accounts = session.scalar(
+                select(func.count(AccountORM.id))
+                .where(
+                    AccountORM.branch_id == branch.branch_code,
+                    AccountORM.active == True
+                )
+            )
+
+            total_balance = session.scalar(
+                select(func.coalesce(func.sum(AccountORM.balance), 0))
+                .where(
+                    AccountORM.branch_id == branch.branch_code
+                )
+            )
+
+            # -------------------------
+            # STAFF METRICS
+            # -------------------------
+
+            staff_ids = []
+
+            if branch.staff_list:
+                staff_ids = [
+                    staff_id.strip()
+                    for staff_id in branch.staff_list.split(",")
+                    if staff_id.strip()
+                ]
+
+            total_staff = len(staff_ids)
+
+            total_tellers = 0
+
+            if staff_ids:
+                total_tellers = session.scalar(
+                    select(func.count(UserORM.id))
+                    .where(
+                        UserORM.id.in_(staff_ids),
+                        UserORM.role == "TELLER"
+                    )
+                )
+
+            # -------------------------
+            # ADD BRANCH TO RESULTS
+            # -------------------------
+
+            results.append({
                 "branch_code": branch.branch_code,
                 "branch_name": branch.branch_name,
                 "location": branch.location,
                 "manager_id": branch.manager_id,
                 "staff_list": branch.staff_list,
-            }
-            for branch in branches
-        ]
+
+                "performance": {
+                    "total_accounts": total_accounts or 0,
+                    "active_accounts": active_accounts or 0,
+                    "total_balance": float(total_balance or 0),
+                },
+
+                "staff_metrics": {
+                    "total_staff": total_staff,
+                    "total_tellers": total_tellers or 0,
+                }
+            })
+
+        return results
 
 def get_branch_performance(current_user):
     """

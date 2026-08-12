@@ -89,6 +89,26 @@ class BranchResponse(BaseModel):
     manager_id: Optional[str] = None
     staff_list: Optional[str] = None
 
+class BranchPerformance(BaseModel):
+    total_accounts: int
+    active_accounts: int
+    total_balance: float
+
+
+class StaffMetrics(BaseModel):
+    total_staff: int
+    total_tellers: int
+
+
+class BranchResponse(BaseModel):
+    branch_code: str
+    branch_name: str
+    location: str
+    manager_id: Optional[str] = None
+    staff_list: Optional[str] = None
+    performance: Optional[BranchPerformance] = None
+    staff_metrics: Optional[StaffMetrics] = None
+
 class BranchManagerUpdate(BaseModel):
     manager_id: str
 
