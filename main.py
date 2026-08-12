@@ -14,6 +14,8 @@ from controllers.customer_controller import router as customer_router
 from controllers.account_controller import router as account_router
 from controllers.transaction_controller import router as transaction_router
 from controllers.auth_controller import router as auth_router
+from controllers.branch_manager_controller import router as branch_manager_router
+from controllers.user_controller import router as user_router
 
 from models.database import init_db
 
@@ -32,6 +34,8 @@ app.include_router(customer_router, prefix="/api/v1/customers", tags=["Customers
 app.include_router(account_router, prefix="/api/v1/accounts", tags=["Accounts"])
 app.include_router(transaction_router, prefix="/api/v1/transactions", tags=["Transactions"])
 app.include_router(auth_router, prefix="/api/v1/auth", tags=["Authentication"])
+app.include_router(branch_manager_router, prefix="/api/v1/branch-managers", tags=["Branch Managers"])
+app.include_router(user_router, prefix="/api/v1/users", tags=["Users"])
 
 @app.get("/", tags=["Health"])
 def health_check():

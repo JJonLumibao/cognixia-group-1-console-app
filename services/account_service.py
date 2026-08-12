@@ -35,15 +35,40 @@ class AccountService:
             }
 
     @staticmethod
-    def get_accounts(branch_id=None, min_balance=None):
+    def get_accounts(branch_id=None, min_balance=None, current_user=None):
         with SessionLocal() as session:
+
             stmt = select(AccountORM)
 
+            # CUSTOMER can only see their own accounts
+            if "CUSTOMER" in current_user.get("roles", []):
+                user_email = current_user.get("email")
+
+                customer = session.execute(
+                    select(CustomerORM).where(
+                        CustomerORM.email == user_email
+                    )
+                ).scalar_one_or_none()
+
+                if customer is None:
+                    raise HTTPException(
+                        status_code=404,
+                        detail="Customer profile not found"
+                    )
+
+                stmt = stmt.where(
+                    AccountORM.owner_id == customer.id
+                )
+
             if branch_id is not None:
-                stmt = stmt.where(AccountORM.branch_id == str(branch_id))
+                stmt = stmt.where(
+                    AccountORM.branch_id == str(branch_id)
+                )
 
             if min_balance is not None:
-                stmt = stmt.where(AccountORM.balance >= float(min_balance))
+                stmt = stmt.where(
+                    AccountORM.balance >= float(min_balance)
+                )
 
             results = session.scalars(stmt).all()
 

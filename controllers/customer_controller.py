@@ -1,5 +1,6 @@
-﻿from fastapi import APIRouter, status, HTTPException
+﻿from fastapi import APIRouter, Depends, status, HTTPException
 from typing import List
+from security.dependencies import get_current_user
 from models import schemas
 from services import customer_service
 
@@ -13,6 +14,25 @@ def create_customer(payload: schemas.CustomerCreate):
 @router.get("", response_model=List[schemas.CustomerResponse])
 def get_customers():
     return customer_service.get_all_customers()
+
+@router.get(
+    "/me",
+    response_model=schemas.CustomerResponse
+)
+def get_my_customer(
+    current_user=Depends(get_current_user)
+):
+
+    try:
+        return customer_service.get_customer_by_email(
+            current_user["email"]
+        )
+
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e)
+        )
 
 @router.get("/{customer_id}", response_model=schemas.CustomerResponse)
 def get_customer(customer_id: str):

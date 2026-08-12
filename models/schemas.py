@@ -3,10 +3,11 @@ from typing import Optional, List
 from datetime import datetime
 
 class DepositRequest(BaseModel):
-    # Field(gt=0) enforces the amount must be greater than 0 at the API level
+    account_id: str
     amount: float = Field(..., gt=0, description="Deposit amount must be positive")
 
 class WithdrawRequest(BaseModel):
+    account_id: str
     amount: float = Field(..., gt=0, description="Withdrawal amount must be positive")
 
 class AccountResponse(BaseModel):
@@ -26,11 +27,6 @@ class AccountCreate(BaseModel):
     # Optional fields to handle our specific child classes
     min_balance: Optional[float] = 100.0        # For SavingsAccount
     overdraft_limit: Optional[float] = 500.0    # For CheckingAccount
-
-class TransferRequest(BaseModel):
-    from_account_id: str
-    to_account_id: str
-    amount: float = Field(..., gt=0)
 
 class TransactionResponse(BaseModel):
     id: str
@@ -64,13 +60,6 @@ class CustomerUpdate(BaseModel):
     branch_id: Optional[str] = None
     active: Optional[bool] = None
 
-class TransactionCreate(BaseModel):
-    """Schema for creating a new transaction"""
-    from_account: Optional[str] = None
-    to_account: Optional[str] = None
-    amount: float
-    transaction_type: str
-
 class TransferCreate(BaseModel):
     """Schema specifically for account-to-account transfers"""
     from_account_id: str
@@ -82,6 +71,22 @@ class RegisterRequest(BaseModel):
     password: str
     role: str = "CUSTOMER"
 
+class BranchCreate(BaseModel):
+    branch_code: str
+    branch_name: str
+    location: str
+    manager_id: str
+    staff_list: Optional[str] = None
+
+class BranchResponse(BaseModel):
+    branch_code: str
+    branch_name: str
+    location: str
+    manager_id: Optional[str] = None
+    staff_list: Optional[str] = None
+
+class BranchManagerUpdate(BaseModel):
+    manager_id: str
 
 class LoginRequest(BaseModel):
     email: EmailStr
@@ -92,3 +97,9 @@ class TokenResponse(BaseModel):
     access_token: str
     refresh_token: str
     token_type: str = "bearer"
+
+class UserResponse(BaseModel):
+    id: str
+    email: str
+    role: str
+    active: bool

@@ -1,9 +1,9 @@
-from fastapi import APIRouter, status, Query
+from fastapi import APIRouter, status, Depends, Query
 from typing import List, Optional
 
 from models import schemas
 from services.account_service import AccountService
-
+from security.dependencies import require_roles
 
 router = APIRouter()
 
@@ -26,9 +26,11 @@ def create_account(payload: schemas.AccountCreate):
 )
 def get_accounts(
     branch_id: Optional[str] = Query(default=None),
-    min_balance: Optional[float] = Query(default=None)
+    min_balance: Optional[float] = Query(default=None),
+    current_user=Depends(require_roles("CUSTOMER", "ADMIN"))
 ):
     return AccountService.get_accounts(
         branch_id=branch_id,
-        min_balance=min_balance
+        min_balance=min_balance,
+        current_user=current_user
     )

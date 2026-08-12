@@ -1,13 +1,20 @@
 ﻿import uuid
 from datetime import datetime
+
 from fastapi import HTTPException
 from sqlalchemy import select
-from models.database import SessionLocal, Transaction as TransactionORM, Account as AccountORM
+
+from models.database import (
+    SessionLocal,
+    Transaction as TransactionORM,
+    Account as AccountORM
+)
 from models.domain import TransactionType
 
 
 def get_transactions(start_date=None, transaction_type=None) -> list:
-    """Fetches transactions from the database, optionally filtering by date or type."""
+    """Fetch transactions, optionally filtered by date or type."""
+
     with SessionLocal() as session:
         stmt = select(TransactionORM)
 
@@ -20,7 +27,10 @@ def get_transactions(start_date=None, transaction_type=None) -> list:
                     dt = datetime.strptime(start_date, "%Y-%m-%d")
                     stmt = stmt.where(TransactionORM.timestamp >= dt)
                 except ValueError:
-                    raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD.")
+                    raise HTTPException(
+                        status_code=400,
+                        detail="Invalid date format. Use YYYY-MM-DD."
+                    )
 
         transactions = session.scalars(stmt).all()
 
@@ -37,66 +47,185 @@ def get_transactions(start_date=None, transaction_type=None) -> list:
         ]
 
 
-def create_transaction(txn_data: dict) -> dict:
-    """Creates a new generic transaction and saves it to PostgreSQL."""
-    t_type = TransactionType(txn_data.get("transaction_type"))
+def deposit_money(payload: dict) -> dict:
+    """Deposits money into a customer's account."""
 
-    new_id = str(uuid.uuid4())[:8]
-    new_txn = TransactionORM(
-        id=new_id,
-        from_account_id=txn_data.get("from_account") or txn_data.get("from_account_id"),
-        to_account_id=txn_data.get("to_account") or txn_data.get("to_account_id"),
-        amount=float(txn_data.get("amount", 0)),
-        type=t_type.value,
-        timestamp=datetime.utcnow(),
-    )
+    account_id = payload.get("account_id")
+    amount = float(payload.get("amount", 0))
+
+    if amount <= 0:
+        raise HTTPException(
+            status_code=400,
+            detail="Deposit amount must be greater than 0"
+        )
 
     with SessionLocal() as session:
-        session.add(new_txn)
+        account = session.get(AccountORM, account_id)
+
+        if not account:
+            raise HTTPException(
+                status_code=404,
+                detail="Account not found"
+            )
+
+        if account.active is False:
+            raise HTTPException(
+                status_code=400,
+                detail="Account is inactive"
+            )
+
+        account.balance += amount
+
+        transaction = TransactionORM(
+            id=str(uuid.uuid4())[:8],
+            from_account_id=None,
+            to_account_id=account_id,
+            amount=amount,
+            type=TransactionType.DEPOSIT.value,
+            timestamp=datetime.utcnow()
+        )
+
+        session.add(transaction)
         session.commit()
-        session.refresh(new_txn)
+        session.refresh(transaction)
 
         return {
-            "id": new_txn.id,
-            "from_account_id": new_txn.from_account_id,
-            "to_account_id": new_txn.to_account_id,
-            "amount": new_txn.amount,
-            "type": new_txn.type,
-            "timestamp": new_txn.timestamp,
+            "id": transaction.id,
+            "from_account_id": transaction.from_account_id,
+            "to_account_id": transaction.to_account_id,
+            "amount": transaction.amount,
+            "type": transaction.type,
+            "timestamp": transaction.timestamp,
         }
 
 
-def transfer_money(payload: dict) -> dict:
-    """Handles moving funds between two accounts and recording the transaction in PostgreSQL."""
+def withdraw_money(payload: dict) -> dict:
+    """Withdraws money from a customer's account."""
+
+    account_id = payload.get("account_id")
+    amount = float(payload.get("amount", 0))
+
+    if amount <= 0:
+        raise HTTPException(
+            status_code=400,
+            detail="Withdrawal amount must be greater than 0"
+        )
+
+    with SessionLocal() as session:
+        account = session.get(AccountORM, account_id)
+
+        if not account:
+            raise HTTPException(
+                status_code=404,
+                detail="Account not found"
+            )
+
+        if account.active is False:
+            raise HTTPException(
+                status_code=400,
+                detail="Account is inactive"
+            )
+
+        if account.balance < amount:
+            raise HTTPException(
+                status_code=400,
+                detail="Insufficient funds"
+            )
+
+        account.balance -= amount
+
+        transaction = TransactionORM(
+            id=str(uuid.uuid4())[:8],
+            from_account_id=account_id,
+            to_account_id=None,
+            amount=amount,
+            type=TransactionType.WITHDRAWAL.value,
+            timestamp=datetime.utcnow()
+        )
+
+        session.add(transaction)
+        session.commit()
+        session.refresh(transaction)
+
+        return {
+            "id": transaction.id,
+            "from_account_id": transaction.from_account_id,
+            "to_account_id": transaction.to_account_id,
+            "amount": transaction.amount,
+            "type": transaction.type,
+            "timestamp": transaction.timestamp,
+        }
+
+
+def transfer_money(payload: dict, current_user: dict) -> dict:
+    """Handles moving funds between two accounts and recording the transaction."""
+
     from_account_id = payload.get("from_account_id")
     to_account_id = payload.get("to_account_id")
     amount = float(payload.get("amount", 0))
 
     if amount <= 0:
-        raise HTTPException(status_code=400, detail="Transfer amount must be greater than 0")
+        raise HTTPException(
+            status_code=400,
+            detail="Transfer amount must be greater than 0"
+        )
+
     if from_account_id == to_account_id:
-        raise HTTPException(status_code=400, detail="Cannot transfer money to the same account")
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot transfer money to the same account"
+        )
 
     with SessionLocal() as session:
         from_account = session.get(AccountORM, from_account_id)
+
         if not from_account:
-            raise HTTPException(status_code=404, detail="Sender account not found")
+            raise HTTPException(
+                status_code=404,
+                detail="Sender account not found"
+            )
+
+        # CUSTOMER can only transfer from their own account
+        if "CUSTOMER" in current_user.get("roles", []):
+            user_id = current_user.get("sub")
+
+            if from_account.owner_id != user_id:
+                raise HTTPException(
+                    status_code=403,
+                    detail="You can only transfer from your own account"
+                )
 
         to_account = session.get(AccountORM, to_account_id)
+
         if not to_account:
-            raise HTTPException(status_code=404, detail="Recipient account not found")
+            raise HTTPException(
+                status_code=404,
+                detail="Recipient account not found"
+            )
 
         if from_account.active is False:
-            raise HTTPException(status_code=400, detail="Sender account is inactive")
+            raise HTTPException(
+                status_code=400,
+                detail="Sender account is inactive"
+            )
+
         if to_account.active is False:
-            raise HTTPException(status_code=400, detail="Recipient account is inactive")
+            raise HTTPException(
+                status_code=400,
+                detail="Recipient account is inactive"
+            )
+
         if from_account.balance < amount:
-            raise HTTPException(status_code=400, detail="Insufficient funds")
+            raise HTTPException(
+                status_code=400,
+                detail="Insufficient funds"
+            )
 
         from_account.balance -= amount
         to_account.balance += amount
 
         new_id = str(uuid.uuid4())[:8]
+
         transaction_record = TransactionORM(
             id=new_id,
             from_account_id=from_account_id,

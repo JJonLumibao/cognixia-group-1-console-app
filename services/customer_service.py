@@ -20,6 +20,35 @@ def get_all_customers() -> list:
         ]
 
 
+def get_customer_by_email(email: str) -> dict:
+    """Fetches the customer associated with the logged-in user's email."""
+
+    with SessionLocal() as session:
+
+        customer = session.execute(
+            select(CustomerORM).where(
+                CustomerORM.email == email
+            )
+        ).scalar_one_or_none()
+
+        if not customer:
+            raise ValueError(
+                "Customer profile not found for this user."
+            )
+
+        return {
+            "id": customer.id,
+            "name": customer.name,
+            "email": customer.email,
+            "branch_id": customer.branch_id,
+            "active": customer.active,
+            "accounts": [
+                account.id
+                for account in customer.accounts
+            ],
+        }
+
+
 def get_customers_by_id(customer_id: str) -> dict:
     """Fetches a single customer by their ID."""
     with SessionLocal() as session:
