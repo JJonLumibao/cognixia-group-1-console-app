@@ -37,3 +37,19 @@ def get_accounts(
         min_balance=min_balance,
         current_user=current_user
     )
+
+@router.patch(
+    "/{account_id}/status",
+    response_model=schemas.AccountResponse,
+    status_code=status.HTTP_200_OK
+)
+def update_account_status(
+    account_id: str,
+    payload: schemas.AccountStatusUpdate,
+    current_user=Depends(require_roles("CUSTOMER", "ADMIN"))
+):
+    return AccountService.update_account_status(
+        account_id,
+        payload,
+        current_user
+    )

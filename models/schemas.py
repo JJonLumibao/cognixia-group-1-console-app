@@ -18,6 +18,9 @@ class AccountResponse(BaseModel):
     branch_id: str 
     active: bool = True
 
+class AccountStatusUpdate(BaseModel):
+    active: bool
+
 class AccountCreate(BaseModel):
     owner_id: str
     account_type: str  # e.g., "Checking" or "Savings"

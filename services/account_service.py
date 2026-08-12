@@ -106,3 +106,67 @@ class AccountService:
                 }
                 for account in results
             ]
+
+    @staticmethod
+    def update_account_status(account_id, payload, current_user):
+        with SessionLocal() as session:
+
+            account = session.get(AccountORM, account_id)
+
+            if not account:
+                raise HTTPException(
+                    status_code=404,
+                    detail="Account not found"
+                )
+
+            roles = current_user.get("roles", [])
+
+            # ADMIN can modify any account
+            if "ADMIN" in roles:
+                account.active = payload.active
+
+            # CUSTOMER can only modify their own accounts
+            elif "CUSTOMER" in roles:
+
+                user_email = current_user.get("email")
+
+                customer = session.execute(
+                    select(CustomerORM).where(
+                        CustomerORM.email == user_email
+                    )
+                ).scalar_one_or_none()
+
+                if customer is None:
+                    raise HTTPException(
+                        status_code=404,
+                        detail="Customer profile not found"
+                    )
+
+                # IMPORTANT:
+                # Account.owner_id refers to Customer.id,
+                # NOT User.id from the JWT.
+                if account.owner_id != customer.id:
+                    raise HTTPException(
+                        status_code=403,
+                        detail="You are not authorized to modify this account"
+                    )
+
+                account.active = payload.active
+
+            else:
+                raise HTTPException(
+                    status_code=403,
+                    detail="You are not authorized to modify this account"
+                )
+
+            session.commit()
+            session.refresh(account)
+
+            return {
+                "id": account.id,
+                "owner_id": account.owner_id,
+                "account_type": account.account_type,
+                "balance": account.balance,
+                "branch_id": account.branch_id,
+                "active": account.active,
+            }
