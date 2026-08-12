@@ -125,6 +125,9 @@ class Account(Base):
     # Current monetary balance of the account.
     balance = Column(Float, nullable=False, default=0.0)
 
+    # Currency used by this account. Defaults to USD when not specified.
+    currency = Column(String, nullable=False, default="USD")
+
     # Branch associated with the account.
     branch_id = Column(String, nullable=True)
 
@@ -165,6 +168,15 @@ class Transaction(Base):
 
     # Amount of money involved in the transaction.
     amount = Column(Float, nullable=False)
+
+    # Currency of the source amount for this transaction.
+    currency = Column(String, nullable=False, default="USD")
+
+    # Converted amount received by the destination account, when relevant.
+    converted_amount = Column(Float, nullable=True)
+
+    # Currency used for the converted amount when relevant.
+    converted_currency = Column(String, nullable=True)
 
     # Type of transaction: Deposit, Withdrawal, or Transfer.
     type = Column(String, nullable=False)

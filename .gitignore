@@ -7,3 +7,5 @@ __pycache__/
 migrate.py
 init_db.py
 migrate_user_branches.py
+.DS_Store
+.venv/

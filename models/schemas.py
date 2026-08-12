@@ -47,6 +47,9 @@ class AccountResponse(BaseModel):
     # Current account balance.
     balance: float
 
+    # Currency used by the account.
+    currency: str = "USD"
+
     # Branch associated with the account.
     branch_id: str
 
@@ -71,6 +74,9 @@ class AccountCreate(BaseModel):
 
     # Starting balance for the new account.
     balance: float = 0.00
+
+    # Currency used by the new account.
+    currency: str = "USD"
 
     # Branch associated with the account.
     branch_id: str
@@ -101,6 +107,15 @@ class TransactionResponse(BaseModel):
 
     # Amount involved in the transaction.
     amount: float
+
+    # Source currency for this transaction.
+    currency: str = "USD"
+
+    # Converted amount received by the destination account when relevant.
+    converted_amount: Optional[float] = None
+
+    # Converted currency for the destination amount when relevant.
+    converted_currency: Optional[str] = None
 
     # Type of transaction: Deposit, Withdrawal, or Transfer.
     type: str
