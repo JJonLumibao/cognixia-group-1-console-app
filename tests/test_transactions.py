@@ -155,3 +155,40 @@ def test_transfer_outside_branch_forbidden():
 
     assert response.status_code == 403
     assert response.json()["detail"] == "Cannot transfer from an account outside your branch"
+
+
+def test_transfer_between_different_currencies_converts_amount():
+    token = create_access_token(
+        user_id="admin12345678",
+        email="admin@example.com",
+        role="ADMIN",
+        branch_id="BR001"
+    )
+
+    with SessionLocal() as session:
+        sender = session.get(Account, "acct12345678")
+        recipient = session.get(Account, "acct87654321")
+        sender.currency = "USD"
+        recipient.currency = "EUR"
+        sender.balance = 1000.0
+        recipient.balance = 500.0
+        session.commit()
+
+    response = client.post(
+        "/api/v1/transactions/transfer",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"from_account_id": "acct12345678", "to_account_id": "acct87654321", "amount": 100.0},
+    )
+
+    assert response.status_code == 201
+    payload = response.json()
+    assert payload["amount"] == 100.0
+    assert payload["currency"] == "USD"
+    assert payload["converted_amount"] == 92.0
+    assert payload["converted_currency"] == "EUR"
+
+    with SessionLocal() as session:
+        sender = session.get(Account, "acct12345678")
+        recipient = session.get(Account, "acct87654321")
+        assert sender.balance == 900.0
+        assert recipient.balance == 592.0

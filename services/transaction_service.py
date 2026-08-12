@@ -526,6 +526,30 @@ def withdraw_money(payload: dict, current_user: dict) -> dict:
         }
 
 
+def _convert_currency(amount: float, from_currency: str, to_currency: str) -> float:
+    """Convert an amount from one currency into another using a simple fixed-rate table."""
+    fx_rates = {
+        "USD": {"USD": 1.0, "EUR": 0.92, "GBP": 0.79, "JPY": 157.0},
+        "EUR": {"USD": 1.09, "EUR": 1.0, "GBP": 0.86, "JPY": 170.0},
+        "GBP": {"USD": 1.27, "EUR": 1.16, "GBP": 1.0, "JPY": 198.0},
+        "JPY": {"USD": 0.0064, "EUR": 0.0059, "GBP": 0.0051, "JPY": 1.0},
+    }
+
+    normalized_from = (from_currency or "USD").upper()
+    normalized_to = (to_currency or "USD").upper()
+
+    if normalized_from == normalized_to:
+        return amount
+
+    if normalized_from not in fx_rates or normalized_to not in fx_rates[normalized_from]:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Currency conversion is not supported for {normalized_from} to {normalized_to}"
+        )
+
+    return round(amount * fx_rates[normalized_from][normalized_to], 2)
+
+
 # Transfer money from one account to another.
 def transfer_money(payload: dict, current_user: dict) -> dict:
 
@@ -616,9 +640,16 @@ def transfer_money(payload: dict, current_user: dict) -> dict:
                 detail="Insufficient funds"
             )
 
+        received_amount = amount
+        source_currency = (from_account.currency or "USD").upper()
+        target_currency = (to_account.currency or "USD").upper()
+
+        if source_currency != target_currency:
+            received_amount = _convert_currency(amount, source_currency, target_currency)
+
         # Move the money between the two account balances.
         from_account.balance -= amount
-        to_account.balance += amount
+        to_account.balance += received_amount
 
         # Generate a unique ID for the transfer transaction.
         new_id = generate_id()
@@ -629,6 +660,9 @@ def transfer_money(payload: dict, current_user: dict) -> dict:
             from_account_id=from_account_id,
             to_account_id=to_account_id,
             amount=amount,
+            currency=source_currency,
+            converted_amount=received_amount if source_currency != target_currency else None,
+            converted_currency=target_currency if source_currency != target_currency else None,
             type=TransactionType.TRANSFER.value,
             status=TransactionStatus.COMPLETED.value,
             timestamp=datetime.utcnow(),
@@ -645,6 +679,9 @@ def transfer_money(payload: dict, current_user: dict) -> dict:
             "from_account_id": transaction_record.from_account_id,
             "to_account_id": transaction_record.to_account_id,
             "amount": transaction_record.amount,
+            "currency": transaction_record.currency,
+            "converted_amount": transaction_record.converted_amount,
+            "converted_currency": transaction_record.converted_currency,
             "type": transaction_record.type,
             "status": transaction_record.status,
             "timestamp": transaction_record.timestamp,

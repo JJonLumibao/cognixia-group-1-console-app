@@ -69,6 +69,7 @@ class AccountService:
                 owner_id=payload.owner_id,
                 account_type=payload.account_type,
                 balance=float(payload.balance),
+                currency=str(payload.currency or "USD").upper(),
                 branch_id=payload.branch_id,
                 active=True,
             )
@@ -84,6 +85,7 @@ class AccountService:
                 "owner_id": new_account.owner_id,
                 "account_type": new_account.account_type,
                 "balance": new_account.balance,
+                "currency": new_account.currency,
                 "branch_id": new_account.branch_id,
                 "active": new_account.active,
             }
@@ -143,6 +145,7 @@ class AccountService:
                     "owner_id": account.owner_id,
                     "account_type": account.account_type,
                     "balance": account.balance,
+                    "currency": account.currency,
                     "branch_id": account.branch_id,
                     "active": account.active,
                 }
@@ -221,6 +224,7 @@ class AccountService:
                 "owner_id": account.owner_id,
                 "account_type": account.account_type,
                 "balance": account.balance,
+                "currency": account.currency,
                 "branch_id": account.branch_id,
                 "active": account.active,
             }
