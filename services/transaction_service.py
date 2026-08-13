@@ -536,8 +536,9 @@ def withdraw_money(payload: dict, current_user: dict) -> dict:
         }
 
 
+# Convert a monetary amount between two different currencies.
 def _convert_currency(amount: float, from_currency: str, to_currency: str) -> float:
-    """Convert an amount from one currency into another using a simple fixed-rate table."""
+    # Define a hardcoded dictionary of fixed exchange rates.
     fx_rates = {
         "USD": {"USD": 1.0, "EUR": 0.92, "GBP": 0.79, "JPY": 157.0},
         "EUR": {"USD": 1.09, "EUR": 1.0, "GBP": 0.86, "JPY": 170.0},
@@ -545,18 +546,22 @@ def _convert_currency(amount: float, from_currency: str, to_currency: str) -> fl
         "JPY": {"USD": 0.0064, "EUR": 0.0059, "GBP": 0.0051, "JPY": 1.0},
     }
 
+    # Normalize the input currencies to uppercase, defaulting to USD if missing.
     normalized_from = (from_currency or "USD").upper()
     normalized_to = (to_currency or "USD").upper()
 
+    # If the source and target currencies are identical, no conversion is needed.
     if normalized_from == normalized_to:
         return amount
 
+    # Validate that the requested conversion route exists in the rate table.
     if normalized_from not in fx_rates or normalized_to not in fx_rates[normalized_from]:
         raise HTTPException(
             status_code=400,
             detail=f"Currency conversion is not supported for {normalized_from} to {normalized_to}"
         )
 
+    # Calculate the converted amount and round it to two decimal places for standard currency formatting.
     return round(amount * fx_rates[normalized_from][normalized_to], 2)
 
 
