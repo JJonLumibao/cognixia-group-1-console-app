@@ -1,8 +1,11 @@
 import apiClient from "./client";
 
-export function registerUser({ email, password, role }) {
+export function registerUser({ email, password, role, branchId }) {
   // Register now logs the user in directly and returns a TokenResponse.
-  return apiClient.post("/auth/register", { email, password, role }).then((res) => res.data);
+  // branch_id is required by the backend for every role.
+  return apiClient
+    .post("/auth/register", { email, password, role, branch_id: branchId })
+    .then((res) => res.data);
 }
 
 export function loginUser({ email, password }) {

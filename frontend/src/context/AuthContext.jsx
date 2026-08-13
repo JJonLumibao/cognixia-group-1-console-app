@@ -15,6 +15,7 @@ function readStoredUser() {
     id: claims.sub,
     email: claims.email,
     roles: claims.roles || [],
+    branchId: claims.branch_id || null,
     token,
   };
 }
@@ -27,6 +28,7 @@ function storeTokens(data) {
     id: claims?.sub,
     email: claims?.email,
     roles: claims?.roles || [],
+    branchId: claims?.branch_id || null,
     token: data.access_token,
   };
 }
@@ -41,9 +43,9 @@ export function AuthProvider({ children }) {
     return nextUser;
   };
 
-  const register = async ({ email, password, role }) => {
+  const register = async ({ email, password, role, branchId }) => {
     // Registering now logs the user in immediately (backend returns a TokenResponse).
-    const data = await registerUser({ email, password, role });
+    const data = await registerUser({ email, password, role, branchId });
     const nextUser = storeTokens(data);
     setUser(nextUser);
     return nextUser;

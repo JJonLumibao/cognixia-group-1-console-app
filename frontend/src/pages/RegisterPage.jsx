@@ -11,7 +11,7 @@ const ROLE_OPTIONS = Object.values(ROLES);
 export default function RegisterPage() {
   const { register } = useAuth();
   const navigate = useNavigate();
-  const [form, setForm] = useState({ email: "", password: "", role: ROLES.CUSTOMER });
+  const [form, setForm] = useState({ email: "", password: "", role: ROLES.CUSTOMER, branchId: "" });
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -82,6 +82,18 @@ export default function RegisterPage() {
             </MenuItem>
           ))}
         </TextField>
+
+        <Typography variant="subtitle2" sx={{ mt: 2, mb: 0.5 }}>
+          Branch ID
+        </Typography>
+        <TextField
+          fullWidth
+          required
+          placeholder="e.g. BR001"
+          helperText="Ask your branch manager if you don't know your branch code."
+          value={form.branchId}
+          onChange={handleChange("branchId")}
+        />
 
         <Button
           type="submit"
