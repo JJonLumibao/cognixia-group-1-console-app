@@ -592,7 +592,14 @@ def transfer_money(payload: dict, current_user: dict) -> dict:
             )
 
         # Staff members cannot transfer from accounts outside their assigned branch.
-        if current_user.get("branch_id") is not None and current_user.get("branch_id") != from_account.branch_id:
+        # This does not apply to CUSTOMER users, whose own accounts may legitimately
+        # span multiple branches -- they are already restricted to their own accounts
+        # by the ownership check below.
+        if (
+            "CUSTOMER" not in current_user.get("roles", [])
+            and current_user.get("branch_id") is not None
+            and current_user.get("branch_id") != from_account.branch_id
+        ):
             raise HTTPException(
                 status_code=403,
                 detail="Cannot transfer from an account outside your branch"
