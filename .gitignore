@@ -2,4 +2,10 @@ __pycache__/
 *.pyc
 .env
 venv/
+.venv/
+*.sqlite
+*.sqlite3
 .DS_Store
+migrate.py
+init_db.py
+migrate_user_branches.py
