@@ -1,6 +1,6 @@
 import { createTheme } from "@mui/material/styles";
 
-// Meridian brand palette — deep ink navy for authority/trust, a warm
+// Jade brand palette — deep ink navy for authority/trust, a warm
 // brass accent for a "premium bank" feel, calm neutrals for content.
 const ink = {
   900: "#0B1220",

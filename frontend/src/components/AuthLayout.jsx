@@ -51,7 +51,7 @@ export default function AuthLayout({ eyebrow, title, subtitle, children }) {
           </Box>
           <Box>
             <Typography sx={{ fontFamily: '"Lora", serif', fontWeight: 700, fontSize: 22, lineHeight: 1.1 }}>
-              Meridian
+              Jade
             </Typography>
             <Typography sx={{ fontSize: 11, color: "rgba(255,255,255,0.55)", letterSpacing: 1.5 }}>
               BANK &amp; TRUST
@@ -74,7 +74,7 @@ export default function AuthLayout({ eyebrow, title, subtitle, children }) {
           variants={itemVariants}
           sx={{ color: "rgba(255,255,255,0.4)", fontSize: 12, m: 0 }}
         >
-          © {new Date().getFullYear()} Meridian Bank &amp; Trust. Member FDIC.
+          © {new Date().getFullYear()} Jade Bank &amp; Trust. Member FDIC.
         </Typography>
       </Box>
 
@@ -104,7 +104,7 @@ export default function AuthLayout({ eyebrow, title, subtitle, children }) {
             >
               <AccountBalanceIcon sx={{ fontSize: 20 }} />
             </Box>
-            <Typography sx={{ fontFamily: '"Lora", serif', fontWeight: 700, fontSize: 19 }}>Meridian</Typography>
+            <Typography sx={{ fontFamily: '"Lora", serif', fontWeight: 700, fontSize: 19 }}>Jade</Typography>
           </Box>
 
           {eyebrow && (

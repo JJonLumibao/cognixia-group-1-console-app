@@ -79,7 +79,7 @@ function SidebarContent({ onNavigate }) {
           <Typography
             sx={{ fontFamily: '"Lora", serif', fontWeight: 700, fontSize: 19, lineHeight: 1.1, color: "#fff" }}
           >
-            Meridian
+            Jade
           </Typography>
           <Typography sx={{ fontSize: 11, color: "rgba(255,255,255,0.55)", letterSpacing: 1 }}>
             BANK &amp; TRUST
@@ -235,7 +235,7 @@ export default function AppShell({ title, subtitle, actions, children }) {
           <IconButton onClick={() => setMobileOpen(true)} sx={{ color: "#fff" }}>
             <MenuIcon />
           </IconButton>
-          <Typography sx={{ color: "#fff", fontWeight: 700, fontFamily: '"Lora", serif' }}>Meridian</Typography>
+          <Typography sx={{ color: "#fff", fontWeight: 700, fontFamily: '"Lora", serif' }}>Jade</Typography>
         </Box>
 
         {(title || actions) && (
