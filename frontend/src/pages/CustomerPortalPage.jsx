@@ -26,6 +26,7 @@ import AppShell from "../components/AppShell";
 import AnimatedNumber from "../components/AnimatedNumber";
 import RequestTransactionCard from "../components/portal/RequestTransactionCard";
 import OpenAccountCard from "../components/portal/OpenAccountCard";
+import { currencySymbol, currencyDecimals, formatCurrency, groupBalancesByCurrency } from "../utils/currency";
 
 const listVariants = {
   hidden: {},
@@ -131,7 +132,7 @@ export default function CustomerPortalPage() {
     }
   };
 
-  const totalBalance = accounts.reduce((sum, a) => sum + a.balance, 0);
+  const balancesByCurrency = groupBalancesByCurrency(accounts);
 
   if (!loading && noProfile) {
     return (
@@ -176,9 +177,31 @@ export default function CustomerPortalPage() {
             {loading ? (
               <CircularProgress size={24} sx={{ color: "#fff" }} />
             ) : (
-              <Typography sx={{ fontFamily: '"Lora", serif', fontWeight: 700, fontSize: 40 }}>
-                <AnimatedNumber value={totalBalance} prefix="$" format={(v) => v.toFixed(2)} />
-              </Typography>
+              <Stack direction="row" sx={{ flexWrap: "wrap", alignItems: "baseline", columnGap: 3, rowGap: 0.5 }}>
+                {balancesByCurrency.map(({ currency, total }) => (
+                  <Box key={currency} sx={{ display: "flex", alignItems: "baseline", gap: 0.75 }}>
+                    <Typography
+                      sx={{
+                        fontFamily: '"Lora", serif',
+                        fontWeight: 700,
+                        fontSize: balancesByCurrency.length > 1 ? 32 : 40,
+                      }}
+                    >
+                      <AnimatedNumber
+                        value={total}
+                        prefix={currencySymbol(currency)}
+                        format={(v) => v.toFixed(currencyDecimals(currency))}
+                      />
+                    </Typography>
+                    {balancesByCurrency.length > 1 && (
+                      <Typography sx={{ fontSize: 13, color: "rgba(255,255,255,0.5)" }}>{currency}</Typography>
+                    )}
+                  </Box>
+                ))}
+                {balancesByCurrency.length === 0 && (
+                  <Typography sx={{ fontFamily: '"Lora", serif', fontWeight: 700, fontSize: 40 }}>$0.00</Typography>
+                )}
+              </Stack>
             )}
             <Typography sx={{ fontSize: 13, color: "rgba(255,255,255,0.55)", mt: 0.5 }}>
               across {accounts.length} account{accounts.length === 1 ? "" : "s"}
@@ -264,8 +287,8 @@ export default function CustomerPortalPage() {
                           </Box>
                         </Box>
                         <Box sx={{ textAlign: "right" }}>
-                          <Typography sx={{ fontWeight: 700 }}>${a.balance.toFixed(2)}</Typography>
-                          <Stack direction="row" spacing={0.5} justifyContent="flex-end" sx={{ mt: 0.25 }}>
+                          <Typography sx={{ fontWeight: 700 }}>{formatCurrency(a.balance, a.currency)}</Typography>
+                          <Stack direction="row" spacing={0.5} sx={{ justifyContent: "flex-end", mt: 0.25 }}>
                             <Tooltip title="Click to toggle active status">
                               <Chip
                                 size="small"
@@ -313,7 +336,7 @@ export default function CustomerPortalPage() {
             transition={{ duration: 0.4, delay: 0.15, ease: [0.16, 1, 0.3, 1] }}
             sx={{ p: 3 }}
           >
-            <Stack direction="row" alignItems="center" spacing={1.25} sx={{ mb: 0.5 }}>
+            <Stack direction="row" spacing={1.25} sx={{ alignItems: "center", mb: 0.5 }}>
               <Box
                 sx={{
                   width: 34,

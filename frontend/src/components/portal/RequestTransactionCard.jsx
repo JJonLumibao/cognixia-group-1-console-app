@@ -47,7 +47,7 @@ export default function RequestTransactionCard({ delay = 0.2 }) {
       transition={{ duration: 0.4, delay, ease: [0.16, 1, 0.3, 1] }}
       sx={{ p: 3, mt: 3 }}
     >
-      <Stack direction="row" alignItems="center" spacing={1.25} sx={{ mb: 0.5 }}>
+      <Stack direction="row" spacing={1.25} sx={{ alignItems: "center", mb: 0.5 }}>
         <Box
           sx={{
             width: 34,

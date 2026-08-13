@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Box, Paper, Typography, TextField, Button, Alert, Grid, MenuItem } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
 import { createAccount } from "../../api/accounts";
+import { formatCurrency } from "../../utils/currency";
 
 const ACCOUNT_TYPES = ["Checking", "Savings"];
 const CURRENCIES = ["USD", "EUR", "GBP", "JPY"];
@@ -17,7 +18,7 @@ const columns = [
     headerName: "Balance",
     flex: 1,
     type: "number",
-    valueFormatter: (value) => `$${Number(value).toFixed(2)}`,
+    valueFormatter: (value, row) => formatCurrency(value, row.currency),
   },
   {
     field: "active",
