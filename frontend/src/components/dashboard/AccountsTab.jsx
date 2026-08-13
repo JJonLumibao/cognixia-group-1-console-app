@@ -4,12 +4,14 @@ import { DataGrid } from "@mui/x-data-grid";
 import { createAccount } from "../../api/accounts";
 
 const ACCOUNT_TYPES = ["Checking", "Savings"];
+const CURRENCIES = ["USD", "EUR", "GBP", "JPY"];
 
 const columns = [
   { field: "id", headerName: "Account ID", flex: 1 },
   { field: "owner_id", headerName: "Owner ID", flex: 1 },
   { field: "account_type", headerName: "Type", flex: 1 },
   { field: "branch_id", headerName: "Branch", flex: 1 },
+  { field: "currency", headerName: "Currency", flex: 0.6 },
   {
     field: "balance",
     headerName: "Balance",
@@ -31,6 +33,7 @@ export default function AccountsTab({ accounts, onFiltersChange, onRefresh }) {
     owner_id: "",
     account_type: "Checking",
     balance: "0",
+    currency: "USD",
     branch_id: "",
     min_balance: "100",
     overdraft_limit: "500",
@@ -54,6 +57,7 @@ export default function AccountsTab({ accounts, onFiltersChange, onRefresh }) {
         owner_id: form.owner_id,
         account_type: form.account_type,
         balance: parseFloat(form.balance) || 0,
+        currency: form.currency,
         branch_id: form.branch_id,
         min_balance: parseFloat(form.min_balance) || 0,
         overdraft_limit: parseFloat(form.overdraft_limit) || 0,
@@ -147,6 +151,21 @@ export default function AccountsTab({ accounts, onFiltersChange, onRefresh }) {
             value={form.balance}
             onChange={(e) => setForm({ ...form, balance: e.target.value })}
           />
+          <TextField
+            select
+            label="Currency"
+            fullWidth
+            margin="normal"
+            size="small"
+            value={form.currency}
+            onChange={(e) => setForm({ ...form, currency: e.target.value })}
+          >
+            {CURRENCIES.map((code) => (
+              <MenuItem key={code} value={code}>
+                {code}
+              </MenuItem>
+            ))}
+          </TextField>
           <TextField
             label="Min Balance"
             type="number"

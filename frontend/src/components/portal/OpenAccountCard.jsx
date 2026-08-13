@@ -5,9 +5,19 @@ import AddCardOutlinedIcon from "@mui/icons-material/AddCardOutlined";
 import { createAccount } from "../../api/accounts";
 
 const ACCOUNT_TYPES = ["Checking", "Savings"];
+const CURRENCIES = ["USD", "EUR", "GBP", "JPY"];
+
+const emptyForm = {
+  accountType: "Checking",
+  branchId: "",
+  balance: "0",
+  currency: "USD",
+  minBalance: "100",
+  overdraftLimit: "500",
+};
 
 export default function OpenAccountCard({ ownerId, onCreated, delay = 0.3 }) {
-  const [form, setForm] = useState({ accountType: "Checking", branchId: "", balance: "0" });
+  const [form, setForm] = useState(emptyForm);
   const [status, setStatus] = useState({ error: "", success: "" });
   const [submitting, setSubmitting] = useState(false);
 
@@ -21,9 +31,12 @@ export default function OpenAccountCard({ ownerId, onCreated, delay = 0.3 }) {
         account_type: form.accountType,
         branch_id: form.branchId,
         balance: parseFloat(form.balance) || 0,
+        currency: form.currency,
+        min_balance: parseFloat(form.minBalance) || 0,
+        overdraft_limit: parseFloat(form.overdraftLimit) || 0,
       });
       setStatus({ error: "", success: "Account opened." });
-      setForm({ accountType: "Checking", branchId: "", balance: "0" });
+      setForm(emptyForm);
       onCreated?.();
     } catch (err) {
       setStatus({ error: err.response?.data?.detail || "Failed to open account.", success: "" });
@@ -107,9 +120,52 @@ export default function OpenAccountCard({ ownerId, onCreated, delay = 0.3 }) {
       <TextField
         type="number"
         fullWidth
+        sx={{ mb: 2 }}
         slotProps={{ htmlInput: { step: "0.01", min: "0" } }}
         value={form.balance}
         onChange={(e) => setForm({ ...form, balance: e.target.value })}
+      />
+
+      <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
+        Currency
+      </Typography>
+      <TextField
+        select
+        fullWidth
+        sx={{ mb: 2 }}
+        value={form.currency}
+        onChange={(e) => setForm({ ...form, currency: e.target.value })}
+      >
+        {CURRENCIES.map((code) => (
+          <MenuItem key={code} value={code}>
+            {code}
+          </MenuItem>
+        ))}
+      </TextField>
+
+      <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
+        Minimum Balance
+      </Typography>
+      <TextField
+        type="number"
+        fullWidth
+        sx={{ mb: 2 }}
+        helperText="Applies to Savings accounts."
+        slotProps={{ htmlInput: { step: "0.01", min: "0" } }}
+        value={form.minBalance}
+        onChange={(e) => setForm({ ...form, minBalance: e.target.value })}
+      />
+
+      <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
+        Overdraft Limit
+      </Typography>
+      <TextField
+        type="number"
+        fullWidth
+        helperText="Applies to Checking accounts."
+        slotProps={{ htmlInput: { step: "0.01", min: "0" } }}
+        value={form.overdraftLimit}
+        onChange={(e) => setForm({ ...form, overdraftLimit: e.target.value })}
       />
 
       <Button
