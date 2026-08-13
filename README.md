@@ -1,8 +1,8 @@
-# Bank Management System
+# JADE Bank Management System
 
-A full-stack Bank Management System built as a collaborative project during the Collabera/Cognixia training program.
+A full-stack bank management system developed collaboratively by a team of four as part of the Collabera/Cognixia training program.
 
-The application provides a web-based interface for managing customers, accounts, branches, users, and banking transactions.
+The application simulates a real-world banking environment with role-based authorization, multi-currency accounts, transaction workflows, and customer-to-teller transaction requests.
 
 ## Tech Stack
 
@@ -24,10 +24,45 @@ The application provides a web-based interface for managing customers, accounts,
 ### Database
 - PostgreSQL
 
-### Development & Tools
+### Development Tools
 - Git / GitHub
-- VS Code
 - Postman
+- VS Code
+
+## Key Features
+
+### Role-Based Authorization
+
+The system implements role-based access control with four distinct user roles, each with different permissions and responsibilities:
+
+- **Customer** - Manage personal accounts and submit deposit/withdrawal requests.
+- **Teller** - Manage deposits, withdrawals, review customer transaction requests, and approve or reject deposit and withdrawal requests. 
+- **Branch Manager** - Manage branch operations and oversee branch-level activity.
+- **Admin** - Manage users and system-wide banking operations.
+
+Users are only given access to functionality authorized for their assigned role.
+
+### Multi-Currency Banking
+
+A major feature of the application is its multi-currency support. Customers can create accounts using different currency types and maintain accounts in multiple currencies.
+
+The transaction system also supports **currency exchange between accounts**, allowing transactions involving different currencies to be converted appropriately rather than limiting customers to a single currency.
+
+### Customer-to-Teller Transaction Workflow
+
+Instead of allowing customers to directly execute every banking transaction, the system models a real-world teller approval workflow.
+
+Customers can submit:
+
+- Deposit requests
+- Withdrawal requests
+
+Tellers can then review each request and:
+
+- **Approve** the transaction
+- **Reject** the transaction
+
+This creates a controlled transaction workflow while providing customers with visibility into their transaction requests.
 
 ## Project Structure
 
@@ -45,11 +80,11 @@ Collabera Training/
 │   ├── security/
 │   ├── services/
 │   ├── tests/
-│   ├── .env-example
 │   ├── __init__.py
+│   ├── .env-example
 │   ├── main.py
-│   ├── seed_db.py
-│   └── requirements.txt
+│   ├── requirements.txt
+│   └── seed_db.py
 │
 ├── .gitignore
 └── README.md
