@@ -1,7 +1,7 @@
 ﻿import os
 import uuid
 import hashlib
-from datetime import datetime
+from datetime import datetime, timezone
 from dotenv import load_dotenv
 from sqlalchemy import (
     create_engine,
@@ -214,12 +214,36 @@ class TransactionRequest(Base):
     branch_id = Column(String, nullable=True)
     destination_branch_id = Column(String, nullable=True)
     transaction_id = Column(String, ForeignKey("transactions.id"), nullable=True)
+    source_currency = Column(String, nullable=True)
+    destination_currency = Column(String, nullable=True)
+    exchange_rate = Column(Float, nullable=True)
+    converted_amount = Column(Float, nullable=True)
+    
     requested_at = Column(
         DateTime,
         nullable=False,
-        default=datetime.utcnow
+        default=lambda: datetime.now(timezone.utc)
     )
 
+#Exchange Rate Database Model
+#Stores currency exchange rates for converting between different currencies.
+class ExchangeRate(Base):
+    __tablename__ = "exchange_rates"
+
+    # Primary key for the exchange rate row.
+    id = Column(String, primary_key=True, index=True)
+
+    # Base/source currency code, e.g. 'USD'.
+    base_currency = Column(String, nullable=False)
+
+    # Target/destination currency code, e.g. 'EUR'.
+    target_currency = Column(String, nullable=False)
+
+    # Conversion rate to convert base -> target (multiply base amount).
+    rate = Column(Float, nullable=False)
+
+    # When the rate was recorded/updated.
+    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow)
 
 # BRANCH DATABASE MODEL
 # Stores information about bank branches and their managers/staff.

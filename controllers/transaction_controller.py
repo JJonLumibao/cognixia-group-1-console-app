@@ -19,7 +19,7 @@ router = APIRouter()
     response_model=List[schemas.TransactionResponse]
 )
 def get_transactions(
-    current_user=Depends(require_roles("TELLER", "ADMIN"))
+    current_user=Depends(require_roles("TELLER", "ADMIN", "BRANCH_MANAGER"))
 ):
     # Calls the transaction service to retrieve transaction records.
     return transaction_service.get_transactions()

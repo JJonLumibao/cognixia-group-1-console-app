@@ -9,6 +9,7 @@ from models.database import (
     TransactionRequest as TransactionRequestORM,
     Account as AccountORM,
     Customer as CustomerORM,
+    ExchangeRate as ExchangeRateORM,
     generate_id,
 )
 from models.domain import TransactionType, RequestStatus, TransactionStatus
@@ -159,6 +160,15 @@ def create_transaction_request(payload: dict, current_user: dict) -> dict:
                 if not customer or customer.id != from_account.owner_id:
                     raise ValueError("Customers may only request transfers from their own accounts")
 
+            source_currency = (from_account.currency or "USD").upper()
+            target_currency = (to_account.currency or "USD").upper()
+            converted_amount = amount
+            exchange_rate = 1.0
+
+            if source_currency != target_currency:
+                converted_amount = _convert_currency(amount, source_currency, target_currency, session)
+                exchange_rate = round(converted_amount / amount, 4)    
+
         # Enforce branch membership only for branch staff (TELLER/BRANCH_MANAGER),
         # not for `CUSTOMER` users who create requests for their own accounts.
         roles = current_user.get("roles", [])
@@ -179,6 +189,10 @@ def create_transaction_request(payload: dict, current_user: dict) -> dict:
             requested_by=current_user.get("sub"),
             branch_id=branch_id,
             destination_branch_id=destination_branch_id,
+            source_currency=source_currency if request_type == TransactionType.TRANSFER.value else None,
+            destination_currency=target_currency if request_type == TransactionType.TRANSFER.value else None,
+            exchange_rate=exchange_rate if request_type == TransactionType.TRANSFER.value else None,
+            converted_amount=converted_amount if request_type == TransactionType.TRANSFER.value else None,
         )
 
         session.add(request)
@@ -259,8 +273,14 @@ def _apply_transaction_request(request_obj, session):
             transaction.status = TransactionStatus.COMPLETED.value
 
     else:
-        from_account = session.get(AccountORM, request_obj.from_account_id)
-        to_account = session.get(AccountORM, request_obj.to_account_id)
+        from_account = session.execute(
+            select(AccountORM).where(AccountORM.id == request_obj.from_account_id).with_for_update()
+        ).scalar_one_or_none()
+        
+        to_account = session.execute(
+            select(AccountORM).where(AccountORM.id == request_obj.to_account_id).with_for_update()
+        ).scalar_one_or_none()
+
         if not from_account:
             raise ValueError("Source account not found")
         if not to_account:
@@ -271,8 +291,13 @@ def _apply_transaction_request(request_obj, session):
             raise ValueError("Destination account is inactive")
         if from_account.balance < request_obj.amount:
             raise ValueError("Insufficient funds")
+
+        # Apply the exact amount that was frozen when the request was created
+        actual_received = request_obj.converted_amount if request_obj.converted_amount else request_obj.amount
+        
         from_account.balance -= request_obj.amount
-        to_account.balance += request_obj.amount
+        to_account.balance += actual_received
+
         if transaction is None:
             transaction = TransactionORM(
                 id=generate_id(),
@@ -280,6 +305,9 @@ def _apply_transaction_request(request_obj, session):
                 from_account_id=from_account.id,
                 to_account_id=to_account.id,
                 amount=request_obj.amount,
+                currency=request_obj.source_currency or "USD",
+                converted_amount=actual_received if request_obj.source_currency != request_obj.destination_currency else None,
+                converted_currency=request_obj.destination_currency if request_obj.source_currency != request_obj.destination_currency else None,
                 type=TransactionType.TRANSFER.value,
                 status=TransactionStatus.COMPLETED.value,
                 timestamp=datetime.utcnow(),
@@ -408,7 +436,7 @@ def deposit_money(payload: dict, current_user: dict) -> dict:
 
     with SessionLocal() as session:
         # Find the account receiving the deposit.
-        account = session.get(AccountORM, account_id)
+        account = session.execute(select(AccountORM).where(AccountORM.id == account_id).with_for_update()).scalar_one_or_none()
 
         if not account:
             raise HTTPException(
@@ -476,7 +504,7 @@ def withdraw_money(payload: dict, current_user: dict) -> dict:
 
     with SessionLocal() as session:
         # Find the account being used for the withdrawal.
-        account = session.get(AccountORM, account_id)
+        account = session.execute(select(AccountORM).where(AccountORM.id == account_id).with_for_update()).scalar_one_or_none()
 
         if not account:
             raise HTTPException(
@@ -537,7 +565,7 @@ def withdraw_money(payload: dict, current_user: dict) -> dict:
 
 
 # Convert a monetary amount between two different currencies.
-def _convert_currency(amount: float, from_currency: str, to_currency: str) -> float:
+def _convert_currency(amount: float, from_currency: str, to_currency: str, session) -> float:
     # Define a hardcoded dictionary of fixed exchange rates.
     fx_rates = {
         "USD": {"USD": 1.0, "EUR": 0.92, "GBP": 0.79, "JPY": 157.0},
@@ -554,15 +582,21 @@ def _convert_currency(amount: float, from_currency: str, to_currency: str) -> fl
     if normalized_from == normalized_to:
         return amount
 
-    # Validate that the requested conversion route exists in the rate table.
-    if normalized_from not in fx_rates or normalized_to not in fx_rates[normalized_from]:
+    rate_record = session.execute(
+        select(ExchangeRateORM).where(
+            (ExchangeRateORM.base_currency == normalized_from)
+            & (ExchangeRateORM.target_currency == normalized_to)
+        )
+    ).scalar_one_or_none()
+
+    if not rate_record:
         raise HTTPException(
             status_code=400,
             detail=f"Currency conversion is not supported for {normalized_from} to {normalized_to}"
         )
 
     # Calculate the converted amount and round it to two decimal places for standard currency formatting.
-    return round(amount * fx_rates[normalized_from][normalized_to], 2)
+    return round(amount * rate_record.rate, 2)
 
 
 # Transfer money from one account to another.
@@ -588,7 +622,7 @@ def transfer_money(payload: dict, current_user: dict) -> dict:
 
     with SessionLocal() as session:
         # Retrieve the account sending the money.
-        from_account = session.get(AccountORM, from_account_id)
+        from_account = session.execute(select(AccountORM).where(AccountORM.id == from_account_id).with_for_update()).scalar_one_or_none()
 
         if not from_account:
             raise HTTPException(
@@ -627,7 +661,7 @@ def transfer_money(payload: dict, current_user: dict) -> dict:
                 )
 
         # Retrieve the account receiving the money.
-        to_account = session.get(AccountORM, to_account_id)
+        to_account = session.execute(select(AccountORM).where(AccountORM.id == to_account_id).with_for_update()).scalar_one_or_none()
 
         if not to_account:
             raise HTTPException(
@@ -660,7 +694,7 @@ def transfer_money(payload: dict, current_user: dict) -> dict:
         target_currency = (to_account.currency or "USD").upper()
 
         if source_currency != target_currency:
-            received_amount = _convert_currency(amount, source_currency, target_currency)
+            received_amount = _convert_currency(amount, source_currency, target_currency, session)
 
         # Move the money between the two account balances.
         from_account.balance -= amount

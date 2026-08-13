@@ -126,6 +126,9 @@ class TransactionResponse(BaseModel):
     # Date and time when the transaction occurred.
     timestamp: datetime
 
+    class Config:
+        from_attributes = True
+
 
 # Request model used to capture pending deposit/withdrawal/transfer operations.
 class TransactionRequestCreate(BaseModel):
@@ -150,6 +153,15 @@ class TransactionRequestResponse(BaseModel):
     destination_branch_id: Optional[str] = None
     transaction_id: Optional[str] = None
     requested_at: datetime
+    source_currency: Optional[str] = None
+    destination_currency: Optional[str] = None
+    exchange_rate: Optional[float] = None
+    converted_amount: Optional[float] = None
+
+    requested_at: datetime
+
+    class Config:
+        from_attributes = True
 
 
 # CUSTOMER RESPONSE SCHEMA
