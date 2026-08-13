@@ -24,6 +24,8 @@ import { transferFunds } from "../api/transactions";
 import { getMyCustomer } from "../api/customers";
 import AppShell from "../components/AppShell";
 import AnimatedNumber from "../components/AnimatedNumber";
+import RequestTransactionCard from "../components/portal/RequestTransactionCard";
+import OpenAccountCard from "../components/portal/OpenAccountCard";
 
 const listVariants = {
   hidden: {},
@@ -388,6 +390,10 @@ export default function CustomerPortalPage() {
               {submitting ? "Processing…" : "Transfer Funds"}
             </Button>
           </Paper>
+
+          <RequestTransactionCard />
+
+          {customer && <OpenAccountCard ownerId={customer.id} onCreated={loadData} />}
         </Grid>
       </Grid>
     </AppShell>

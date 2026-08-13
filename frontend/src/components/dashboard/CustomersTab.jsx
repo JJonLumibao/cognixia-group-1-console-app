@@ -12,9 +12,11 @@ import {
   DialogContent,
   DialogActions,
   IconButton,
+  Tooltip,
 } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import BlockIcon from "@mui/icons-material/Block";
+import ContentCopyOutlinedIcon from "@mui/icons-material/ContentCopyOutlined";
 import { DataGrid } from "@mui/x-data-grid";
 import { createCustomer, updateCustomer, deactivateCustomer } from "../../api/customers";
 
@@ -27,6 +29,17 @@ export default function CustomersTab({ customers, onRefresh }) {
   const [editTarget, setEditTarget] = useState(null);
   const [editForm, setEditForm] = useState(emptyForm);
   const [editError, setEditError] = useState("");
+  const [copiedId, setCopiedId] = useState("");
+
+  const handleCopyId = async (id) => {
+    try {
+      await navigator.clipboard.writeText(id);
+      setCopiedId(id);
+      setTimeout(() => setCopiedId(""), 1500);
+    } catch {
+      // Clipboard access denied — nothing to do.
+    }
+  };
 
   const handleCreate = async (e) => {
     e.preventDefault();
@@ -76,7 +89,23 @@ export default function CustomersTab({ customers, onRefresh }) {
   };
 
   const columns = [
-    { field: "id", headerName: "ID", flex: 1 },
+    {
+      field: "id",
+      headerName: "ID",
+      flex: 1,
+      renderCell: (params) => (
+        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, height: "100%" }}>
+          <Typography variant="body2" noWrap>
+            {params.value}
+          </Typography>
+          <Tooltip title={copiedId === params.value ? "Copied!" : "Copy customer ID"}>
+            <IconButton size="small" onClick={() => handleCopyId(params.value)} sx={{ p: 0.25 }}>
+              <ContentCopyOutlinedIcon sx={{ fontSize: 14 }} />
+            </IconButton>
+          </Tooltip>
+        </Box>
+      ),
+    },
     { field: "name", headerName: "Name", flex: 1 },
     { field: "email", headerName: "Email", flex: 1.2 },
     { field: "branch_id", headerName: "Branch", flex: 0.8 },
